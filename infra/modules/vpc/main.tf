@@ -11,11 +11,11 @@ resource "aws_vpc" "this" {
 resource "aws_subnet" "public" {
   for_each = toset(var.public_subnets)
 
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = each.value
+  vpc_id     = aws_vpc.this.id
+  cidr_block = each.value
 
   # If we need more public subnets than availability zones, this will cycle through the AZs.
-  availability_zone = data.aws_availability_zones.available.names[index(var.public_subnets, each.value) % length(data.aws_availability_zones.available.names)]  
+  availability_zone = data.aws_availability_zones.available.names[index(var.public_subnets, each.value) % length(data.aws_availability_zones.available.names)]
 
   tags = merge(var.tags, {
     Name = join("_", [var.vpc_name, "public_subnet", index(var.public_subnets, each.value) + 1])
@@ -25,8 +25,8 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "private" {
   for_each = toset(var.private_subnets)
 
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = each.value
+  vpc_id     = aws_vpc.this.id
+  cidr_block = each.value
 
   # If we need more private subnets than availability zones, this will cycle through the AZs.
   availability_zone = data.aws_availability_zones.available.names[index(var.private_subnets, each.value) % length(data.aws_availability_zones.available.names)]

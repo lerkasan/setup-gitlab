@@ -147,3 +147,17 @@ variable "ami_owner_ids" {
     "ubuntu" = "099720109477" #Canonical
   }
 }
+
+variable "iam_policy_statements" {
+  description = "AWS IAM policies to attach to the EC2 instance role"
+  type = set(object({
+    sid       = string
+    effect    = string
+    actions   = list(string)
+    resources = list(string)
+    condition = optional(map(string))
+    # principals  = optional(map(string))
+  }))
+
+  default = []
+}

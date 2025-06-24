@@ -84,7 +84,16 @@ variable "ec2_appservers" {
     ami_virtualization                   = optional(string, "hvm")
     ami_architectures                    = optional(map(string), { "amd64" = "x86_64" })
     ami_owner_ids                        = optional(map(string), { "ubuntu" = "099720109477" }) # Canonical for Ubuntu AMIs
-    tags                                 = map(string)
+
+    iam_policy_statements = optional(set(object({
+      sid       = string
+      effect    = string
+      actions   = list(string)
+      resources = list(string)
+      condition = optional(map(string))
+      # principals  = optional(map(string))
+    })))
+    tags = map(string)
   }))
 
   default = []
@@ -130,4 +139,86 @@ variable "admin_public_ips" {
   description = "List of admin public IPs to allow SSH access"
   type        = list(string)
   default     = []
+}
+
+variable "load_balancers" {
+  type = list(object({
+    # lb_sg_id                        = string
+    lb_name                    = string
+    lb_internal                = optional(bool, false)
+    lb_type                    = optional(string, "application")
+    vpc_cidr                   = string
+    public_subnets             = list(string)
+    domain_name                = string
+    lb_access_logs_bucket_name = optional(string, null)
+    waf_enabled                = optional(bool, false)
+
+    target_groups = optional(list(object({
+      name                             = string
+      port                             = number
+      protocol                         = string
+      preserve_client_ip               = optional(bool, null)
+      deregistration_delay             = optional(number, 300)
+      health_check_healthy_threshold   = optional(number, 5)
+      health_check_unhealthy_threshold = optional(number, 3)
+      health_check_interval            = optional(number, 60)
+      health_check_timeout             = optional(number, 30)
+      health_check_path                = optional(string, null)
+      health_check_matcher             = optional(string, null)
+      stickiness_type                  = optional(string, "lb_cookie")
+      cookie_duration                  = optional(number, 86400) # 1 day in seconds
+    })))
+
+    listeners = set(object({
+      port                 = number
+      protocol             = string
+      default_action       = optional(string, "forward") # e.g. "forward", "redirect", "fixed-response", "authenticate-cognito", "authenticate-oidc"
+      target_group_name    = optional(string, null)
+      redirect_host        = optional(string, null) # e.g. "api.lerkasan.net"
+      redirect_port        = optional(string, null) # e.g. "443"
+      redirect_protocol    = optional(string, null) # e.g. "HTTPS"
+      redirect_status_code = optional(string, null) # e.g. "HTTP_301"
+      ssl_policy           = optional(string, null) # e.g. "ELBSecurityPolicy-TLS13-1-2-2021-06"
+      certificate_arn      = optional(string, null) # e.g. "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+    }))
+
+    tags = optional(map(string), {})
+  }))
+
+  default = []
+}
+
+variable "s3_buckets" {
+  type = list(object({
+    name                = string
+    region              = optional(string)
+    enable_encryption   = optional(bool, true)
+    enable_logging      = optional(bool, true)
+    logging_bucket_name = optional(string, null)
+    versioning_status   = optional(string, "Enabled")
+    lifecycle_rule = optional(object({
+      status                             = optional(string, "Enabled")
+      prefix                             = optional(string, "")
+      expiration_days                    = optional(number, 0)
+      noncurrent_version_expiration_days = optional(number, 90)
+      noncurrent_version_transition_days = optional(number, 30)
+    }))
+    tags = optional(map(string), {})
+  }))
+
+  validation {
+    condition = alltrue([
+      for bucket in var.s3_buckets : can(regex("^[a-z0-9-]+$", bucket.name))
+    ])
+    error_message = "S3 bucket name must be a valid DNS-compliant name."
+  }
+
+  validation {
+    condition = alltrue([
+      for bucket in var.s3_buckets : contains(["Enabled", "Suspended", "Disabled"], bucket.versioning_status)
+    ])
+    error_message = "Valid values for s3_bucket.versioning_status are Enabled, Suspended, Disabled"
+  }
+
+  default = []
 }

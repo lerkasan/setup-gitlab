@@ -49,3 +49,22 @@ resource "aws_iam_role_policy_attachment" "AmazonSSMManagedInstanceCore" {
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
+
+resource "aws_iam_policy" "this" {
+  for_each = { for statement in var.iam_policy_statements : statement.sid => statement }
+
+  name        = join("_", [each.key, "iam-policy"])
+  description = "IAM policy for EC2 instance - ${each.key}"
+  policy      = data.aws_iam_policy_document.this[each.key].json
+
+  tags = merge(var.tags, {
+    Name = "${each.key}_iam-policy"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "this" {
+  for_each = { for statement in var.iam_policy_statements : statement.sid => statement }
+
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.this[each.key].arn
+}

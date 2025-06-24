@@ -65,3 +65,16 @@ data "aws_iam_policy_document" "ec2_assume_role" {
     }
   }
 }
+
+data "aws_iam_policy_document" "this" {
+  dynamic "statement" {
+    for_each = var.iam_policy_statements != null ? { for statement in var.iam_policy_statements : statement.sid => statement } : {}
+
+    content {
+      sid       = each.value.sid
+      effect    = each.value.effect
+      actions   = each.value.actions
+      resources = each.value.resources
+    }
+  }
+}

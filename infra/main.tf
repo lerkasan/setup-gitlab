@@ -11,7 +11,7 @@ module "vpc" {
   enable_dns_support       = each.value.enable_dns_support
   enable_flow_logs         = each.value.enable_flow_logs
   flow_logs_retention_days = each.value.flow_logs_retention_days
-  tags = each.value.tags
+  tags                     = each.value.tags
 }
 
 module "ec2_instance_connect_endpoint" {
@@ -81,5 +81,41 @@ module "appserver" {
   ami_owner_ids                          = each.value.ami_owner_ids
   tags                                   = each.value.tags
 }
+
+module "s3_bucket" {
+  for_each = { for bucket in var.s3_buckets : bucket.name => bucket }
+
+  source = "./modules/s3"
+
+  bucket_name         = each.value.name
+  enable_encryption   = each.value.enable_encryption
+  enable_logging      = each.value.enable_logging
+  logging_bucket_name = each.value.logging_bucket_name
+  versioning_status   = each.value.versioning_status
+  lifecycle_rule      = each.value.lifecycle_rule
+}
+
+module "loadbalancer" {
+  for_each = { for lb in var.load_balancers : lb.lb_name => lb }
+
+  source = "./modules/loadbalancer"
+
+  lb_name           = each.value.lb_name
+  lb_type           = each.value.lb_type
+  lb_internal       = each.value.lb_internal
+  domain_name       = each.value.domain_name
+  vpc_id            = module.vpc[each.value.vpc_cidr].vpc_id
+  public_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].public_subnets : subnet.id]
+  # public_subnet_ids          = module.vpc[each.value.vpc_cidr].public_subnets[*].id  
+  target_groups              = each.value.target_groups
+  listeners                  = each.value.listeners
+  lb_access_logs_bucket_name = each.value.lb_access_logs_bucket_name
+
+  tags = each.value.tags
+
+  # Ensure the S3 bucket for access logs is created before the load balancer
+  depends_on = [module.s3_bucket]
+}
+
 
 
