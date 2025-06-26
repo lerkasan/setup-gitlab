@@ -42,6 +42,8 @@ resource "aws_cloudwatch_log_group" "this" {
   tags = merge(var.tags, {
     Name = "${var.vpc_name}-vpc-flow-logs"
   })
+
+  depends_on = [aws_kms_key_policy.this]
 }
 
 resource "aws_kms_key" "this" {

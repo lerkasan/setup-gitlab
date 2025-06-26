@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 data "aws_vpc" "this" {
   id = var.vpc_id
 }
@@ -36,13 +38,57 @@ data "cloudinit_config" "user_data" {
   gzip          = true
   base64_encode = true
 
+  dynamic "part" {
+    for_each = var.userdata_config != null ? [1] : []
+
+    content {
+      content_type = "text/cloud-config"
+      content = yamlencode({
+        "write_files" = [
+          {
+            "path"        = "/etc/gitlab/gitlab.rb.template"
+            "permissions" = "0600"
+            "owner"       = "root:root"
+            "content" = templatefile("${path.module}/templates/gitlab_rb.tftpl", {
+              vpc_cidr                      = data.aws_vpc.this.cidr_block,
+              domain_name                   = var.userdata_config.domain_name,
+              external_loadbalancer_enabled = var.userdata_config.external_loadbalancer_enabled,
+              external_postgres_enabled     = var.userdata_config.external_postgres_enabled,
+              external_redis_enabled        = var.userdata_config.external_redis_enabled,
+              db_adapter                    = var.userdata_config.db_adapter,
+              db_host                       = var.userdata_config.db_host,
+              db_port                       = var.userdata_config.db_port,
+              db_name                       = var.userdata_config.db_name,
+              db_username                   = var.userdata_config.db_username,
+              redis_host                    = var.userdata_config.redis_host,
+              redis_port                    = var.userdata_config.redis_port
+            })
+          },
+          {
+            "path"        = "/tmp/populate_gitlab_config.sh"
+            "permissions" = "0700"
+            "owner"       = "root:root"
+            "content" = templatefile("${path.module}/templates/populate_gitlab_config_sh.tftpl", {
+              region = data.aws_region.current.name
+            })
+          }
+        ]
+        }
+      )
+    }
+  }
+
   part {
     content_type = "text/cloud-config"
     content = templatefile("${path.module}/templates/userdata.tftpl", {
-      public_ssh_keys : [for key in data.aws_ssm_parameter.admin_public_ssh_keys : key.value]
+      region          = data.aws_region.current.name,
+      install_gitlab  = var.userdata_config.install_gitlab,
+      gitlab_version  = var.userdata_config.gitlab_version,
+      public_ssh_keys = [for key in data.aws_ssm_parameter.admin_public_ssh_keys : key.value]
     })
   }
 }
+
 
 # ------------- Obtain my public IP to grant SSH access -------------------
 
@@ -67,14 +113,12 @@ data "aws_iam_policy_document" "ec2_assume_role" {
 }
 
 data "aws_iam_policy_document" "this" {
-  dynamic "statement" {
-    for_each = var.iam_policy_statements != null ? { for statement in var.iam_policy_statements : statement.sid => statement } : {}
+  for_each = { for statement in var.iam_policy_statements : statement.sid => statement }
 
-    content {
-      sid       = each.value.sid
-      effect    = each.value.effect
-      actions   = each.value.actions
-      resources = each.value.resources
-    }
+  statement {
+    sid       = each.value.sid
+    effect    = each.value.effect
+    actions   = each.value.actions
+    resources = each.value.resources
   }
 }

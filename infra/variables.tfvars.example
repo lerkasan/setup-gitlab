@@ -1,0 +1,265 @@
+region = "us-east-1"
+admin_public_ips = ["12.34.56.78"]
+
+vpc_networks = [
+  {
+    name                     = "gitlab-vpc"
+    cidr_block               = "10.0.0.0/16"
+    public_subnets           = ["10.0.0.0/24", "10.0.2.0/24"]
+    private_subnets          = ["10.0.1.0/24", "10.0.3.0/24"]
+    enable_dns_hostnames     = true
+    enable_dns_support       = true
+    enable_flow_logs         = true
+    flow_logs_retention_days = 365
+
+    tags = {
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+ec2_bastions = [
+  {
+    ec2_instance_type           = "t3.medium"
+    vpc_cidr                    = "10.0.0.0/16"
+    subnet_cidr                 = "10.0.0.0/24"
+    associate_public_ip_address = true
+    volume_type                 = "gp3"
+    volume_size                 = 10
+    delete_on_termination       = true
+    private_ssh_key_name        = "bastion_ssh_key_pair"
+    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the bastion host
+    enable_ec2_instance_connect_endpoint = true
+    os                                   = "ubuntu"
+    os_product                           = "server"
+    os_architecture                      = "amd64"
+    os_version                           = "22.04"
+    os_releases                          = { "22.04" = "jammy" }
+    ami_virtualization                   = "hvm"
+    ami_architectures                    = { "amd64" = "x86_64" }
+    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    tags = {
+      "Name"        = "GitLabBastion"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+ec2_appservers = [
+  {
+    ec2_instance_type     = "t3.xlarge"
+    vpc_cidr              = "10.0.0.0/16"
+    subnet_cidr           = "10.0.1.0/24"
+    volume_type           = "gp3"
+    volume_size           = 10
+    delete_on_termination = true
+    private_ssh_key_name  = "appserver_ssh_key_pair"
+    enable_bastion_access = true
+    bastion_name          = "GitLabBastion"
+    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the appserver host
+    enable_ec2_instance_connect_endpoint = true
+    os                                   = "ubuntu"
+    os_product                           = "server"
+    os_architecture                      = "amd64"
+    os_version                           = "22.04"
+    os_releases                          = { "22.04" = "jammy" }
+    ami_virtualization                   = "hvm"
+    ami_architectures                    = { "amd64" = "x86_64" }
+    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    iam_policy_statements = [
+      {
+        sid    = "EC2AccessS3Objects"
+        effect = "Allow"
+        actions = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:PutObjectAcl"
+        ]
+        resources = ["arn:aws:s3:::lerkasan-gitlab-*/*"]
+      },
+      {
+        sid    = "EC2AccessS3"
+        effect = "Allow"
+        actions = [
+          "s3:ListBucket",
+          "s3:AbortMultipartUpload",
+          "s3:ListMultipartUploadParts",
+          "s3:ListBucketMultipartUploads"
+        ]
+        resources = ["arn:aws:s3:::lerkasan-gitlab-*"]
+      },
+      {
+        sid    = "SystemsManagerParameterReadOnly"
+        effect = "Allow"
+        actions = [
+          "ssm:GetParameter"
+        ]
+        resources = ["arn:aws:ssm:us-east-1:123456789012:parameter/gitlab_*"]
+      }
+    ]
+
+    userdata_config = {
+      install_gitlab                = true
+      gitlab_version                = "18.1.0-ee.0"
+      domain_name                   = "lerkasan.net"
+      external_loadbalancer_enabled = true
+      external_postgres_enabled     = true
+      external_redis_enabled        = true
+      db_adapter                    = "postgresql"
+      db_name                       = "gitlab"
+      db_port                       = 5432
+      redis_port                    = 6379
+    }
+
+    tags = {
+      "Name"        = "GitLabServer"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+ec2_instance_connect_endpoints = [
+  {
+    vpc_cidr    = "10.0.0.0/16"
+    subnet_cidr = "10.0.1.0/24"
+    tags = {
+      "Name"        = "ec2-instance-connect-endpoint"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+s3_buckets = [{
+  name                = "lerkasan-gitlab-lb-access-logs"
+  enable_encryption   = true
+  enable_key_rotation = true
+  enable_logging      = false
+  object_ownership    = "BucketOwnerEnforced"
+  versioning_status   = "Enabled"
+  lifecycle_rule = {
+    status                             = "Enabled"
+    prefix                             = ""
+    expiration_days                    = 0
+    noncurrent_version_expiration_days = 90
+    noncurrent_version_transition_days = 30
+  }
+}]
+
+load_balancers = [
+  {
+    lb_name                          = "gitlab-lb"
+    lb_type                          = "application" # "network"
+    lb_internal                      = false
+    domain_name                      = "lerkasan.net"
+    vpc_cidr                         = "10.0.0.0/16"
+    public_subnets                   = ["10.0.0.0/24", "10.0.2.0/24"]
+    add_security_rules_for_appserver = true
+    lb_access_logs_bucket_name       = "lerkasan-gitlab-lb-access-logs"
+
+    target_groups = [
+      {
+        name                             = "gitlab-lb-http-target"
+        port                             = 80
+        protocol                         = "HTTP"
+        deregistration_delay             = 300
+        health_check_healthy_threshold   = 3
+        health_check_unhealthy_threshold = 3
+        health_check_interval            = 60
+        health_check_timeout             = 30
+        health_check_path                = "/-/readiness"
+        health_check_matcher             = "200"
+        stickiness_type                  = "lb_cookie"
+        cookie_duration                  = 86400 # 1 day in seconds
+      }
+    ]
+
+    listeners = [
+      {
+        port                 = 80
+        protocol             = "HTTP"
+        default_action       = "redirect"
+        redirect_port        = "443"
+        redirect_protocol    = "HTTPS"
+        redirect_status_code = "HTTP_301"
+      },
+      {
+        port              = 443
+        protocol          = "HTTPS"
+        default_action    = "forward"
+        ssh_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+        target_group_name = "gitlab-lb-http-target"
+      }
+    ]
+
+    tags = {
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+rds_instances = [
+  {
+    rds_name = "gitlab"
+
+    db_instance_class          = "db.t3.micro"
+    db_engine                  = "postgres"
+    db_engine_version          = "17.5"
+    db_port                    = 5432
+    db_storage_type            = "gp3"
+    db_allocated_storage       = 20
+    db_max_allocated_storage   = 30
+    db_backup_retention_period = 7
+    db_maintenance_window      = "Sun:02:00-Sun:04:00"
+    db_name                    = "gitlab"
+    db_username                = "gitlabuser"
+
+    vpc_cidr                         = "10.0.0.0/16"
+    private_subnets                  = ["10.0.1.0/24", "10.0.3.0/24"]
+    add_security_rules_for_appserver = true
+
+    tags = {
+      Name        = "GitLabRDS"
+      Environment = "dev"
+      Project     = "gitlab"
+      ManagedBy   = "terraform"
+    }
+  }
+]
+
+cache_instances = [{
+  cache_cluster_id               = "gitlab"
+  cache_parameter_group_name     = "gitlab"
+  cache_parameter_group_family   = "redis7"
+  cache_engine                   = "redis"
+  cache_engine_version           = "7.1"
+  cache_node_type                = "cache.t3.micro"
+  cache_num_nodes                = 1
+  cache_port                     = 6379
+  cache_maintenance_window       = "Sun:02:00-Sun:04:00"
+  cache_snapshot_window          = "05:00-07:00"
+  cache_snapshot_retention_limit = 7
+  cache_log_group_name           = "gitlab-cache-logs"
+  cache_log_retention_in_days    = 30
+
+  vpc_cidr                         = "10.0.0.0/16"
+  private_subnets                  = ["10.0.1.0/24", "10.0.3.0/24"]
+  add_security_rules_for_appserver = true
+
+  tags = {
+    Name        = "GitLabCache"
+    Environment = "dev"
+    Project     = "gitlab"
+    ManagedBy   = "terraform"
+  }
+}]

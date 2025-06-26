@@ -5,7 +5,7 @@ resource "aws_instance" "this" {
   subnet_id                   = var.subnet_id
   associate_public_ip_address = var.associate_public_ip_address
   key_name                    = var.private_ssh_key_name
-  vpc_security_group_ids      = [aws_security_group.ec2_instance.id]
+  vpc_security_group_ids      = setunion([aws_security_group.ec2_instance.id], var.additional_security_group_ids)
   iam_instance_profile        = aws_iam_instance_profile.this.name
   user_data                   = data.cloudinit_config.user_data.rendered
   ebs_optimized               = true
@@ -67,4 +67,18 @@ resource "aws_iam_role_policy_attachment" "this" {
 
   role       = aws_iam_role.this.name
   policy_arn = aws_iam_policy.this[each.key].arn
+}
+
+resource "aws_iam_role_policy_attachment" "additional_policies" {
+  count = length(var.additional_policy_arns)
+
+  role       = aws_iam_role.this.name
+  policy_arn = var.additional_policy_arns[count.index]
+}
+
+resource "aws_lb_target_group_attachment" "this" {
+  count = var.attach_to_target_group ? 1 : 0
+
+  target_group_arn = var.target_group_arn
+  target_id        = aws_instance.this.id
 }

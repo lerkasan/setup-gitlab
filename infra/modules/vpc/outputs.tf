@@ -15,3 +15,8 @@ output "public_subnets" {
   description = "A map of public subnets keyed by subnet CIDR block"
   value       = { for subnet in aws_subnet.public : subnet.cidr_block => subnet }
 }
+
+output "private_subnets" {
+  description = "A map of private subnets keyed by subnet CIDR block"
+  value       = { for subnet in aws_subnet.private : subnet.cidr_block => subnet }
+}

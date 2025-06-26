@@ -15,6 +15,18 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
+variable "appserver_sg_id" {
+  description = "A security group id of an application server"
+  type        = string
+  default     = null
+}
+
+variable "add_security_rules_for_appserver" {
+  description = "Add rules to the Load Balancer security group to allow access from the application server"
+  type        = bool
+  default     = false
+}
+
 # ----------------- Load balancer parameters -----------------
 
 variable "lb_name" {

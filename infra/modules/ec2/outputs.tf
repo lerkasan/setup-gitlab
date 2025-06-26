@@ -12,3 +12,8 @@ output "vpc_id" {
   description = "VPC ID of the EC2 instance"
   value       = var.vpc_id
 }
+
+output "instance_id" {
+  description = "Instance ID of the EC2 instance"
+  value       = aws_instance.this.id
+}

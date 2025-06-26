@@ -72,6 +72,12 @@ variable "enable_ec2_instance_connect_endpoint" {
   default     = false
 }
 
+variable "additional_security_group_ids" {
+  description = "Set of additional security group IDs to attach to the EC2 instance"
+  type        = set(string)
+  default     = []
+}
+
 variable "bastion_security_group_id" {
   description = "Security group ID of the bastion host"
   type        = string
@@ -160,4 +166,42 @@ variable "iam_policy_statements" {
   }))
 
   default = []
+}
+
+variable "additional_policy_arns" {
+  description = "List of additional IAM policy ARNs to attach to the EC2 instance role"
+  type        = list(string)
+  default     = []
+}
+
+variable "attach_to_target_group" {
+  description = "Whether to attach the EC2 instance to a target group"
+  type        = bool
+  default     = false
+}
+
+variable "target_group_arn" {
+  description = "ARN of the target group to attach the EC2 instance to"
+  type        = string
+  default     = null
+}
+
+variable "userdata_config" {
+  description = "Application configuration for the EC2 instance"
+  type = object({
+    install_gitlab                = optional(bool, false)
+    gitlab_version                = optional(string, "18.1.0-ee.0")
+    domain_name                   = optional(string, null)
+    external_loadbalancer_enabled = optional(bool, false)
+    external_postgres_enabled     = optional(bool, false)
+    external_redis_enabled        = optional(bool, false)
+    db_adapter                    = optional(string, null)
+    db_host                       = optional(string, null)
+    db_port                       = optional(number, null)
+    db_name                       = optional(string, null)
+    db_username                   = optional(string, null)
+    redis_host                    = optional(string, null)
+    redis_port                    = optional(number, null)
+  })
+  default = {}
 }

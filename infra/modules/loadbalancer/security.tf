@@ -33,12 +33,26 @@ resource "aws_security_group_rule" "lb_allow_inbound_http_from_all" {
   security_group_id = aws_security_group.this.id
 }
 
-# resource "aws_security_group_rule" "lb_allow_outbound_to_gitlab_server" {
-#   type                     = "egress"
-#   description              = "Egress to GitLab Server"
-#   from_port                = local.http_port
-#   to_port                  = local.http_port
-#   protocol                 = "tcp"
-#   source_security_group_id = aws_security_group.appserver.id
-#   security_group_id        = aws_security_group.this.id
-# }
+resource "aws_security_group_rule" "lb_allow_outbound_to_appserver" {
+  count = var.add_security_rules_for_appserver ? 1 : 0
+
+  type                     = "egress"
+  description              = "Egress from LoadBalancer to AppServer"
+  from_port                = local.http_port
+  to_port                  = local.http_port
+  protocol                 = "tcp"
+  source_security_group_id = var.appserver_sg_id
+  security_group_id        = aws_security_group.this.id
+}
+
+resource "aws_security_group_rule" "appserver_allow_inbound_from_loadbalancer" {
+  count = var.add_security_rules_for_appserver ? 1 : 0
+
+  type                     = "ingress"
+  description              = "Ingress to AppServer from LoadBalancer "
+  from_port                = local.http_port
+  to_port                  = local.http_port
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.this.id
+  security_group_id        = var.appserver_sg_id
+}

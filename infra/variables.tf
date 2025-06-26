@@ -4,7 +4,7 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "vpcs" {
+variable "vpc_networks" {
   type = list(object({
     name                     = string
     region                   = optional(string)
@@ -21,21 +21,21 @@ variable "vpcs" {
 
   validation {
     condition = alltrue([
-      for vpc in var.vpcs : can(regex("^[a-z0-9-]+$", vpc.name))
+      for vpc in var.vpc_networks : can(regex("^[a-z0-9-]+$", vpc.name))
     ])
     error_message = "VPC name must have lowercase letters, numbers, and hyphens only)."
   }
 
   validation {
     condition = alltrue([
-      for vpc in var.vpcs : can(cidrhost(vpc.cidr_block, 32))
+      for vpc in var.vpc_networks : can(cidrhost(vpc.cidr_block, 32))
     ])
     error_message = "VPC CIDR must be a valid IPv4 CIDR."
   }
 
   validation {
     condition = alltrue([
-      for vpc in var.vpcs : alltrue([
+      for vpc in var.vpc_networks : alltrue([
         for subnet in vpc.public_subnets : length(subnet) > 0 ? can(cidrhost(subnet, 32)) : true
       ])
     ])
@@ -44,7 +44,7 @@ variable "vpcs" {
 
   validation {
     condition = alltrue([
-      for vpc in var.vpcs : alltrue([
+      for vpc in var.vpc_networks : alltrue([
         for subnet in vpc.private_subnets : length(subnet) > 0 ? can(cidrhost(subnet, 32)) : true
       ])
     ])
@@ -53,7 +53,7 @@ variable "vpcs" {
 
   validation {
     condition = alltrue([
-      for vpc in var.vpcs : vpc.enable_flow_logs ? (vpc.flow_logs_retention_days >= 0) : true
+      for vpc in var.vpc_networks : vpc.enable_flow_logs ? (vpc.flow_logs_retention_days >= 0) : true
     ])
     error_message = "Flow logs retention days must be 0 or greater if flow logs are enabled."
   }
@@ -63,28 +63,36 @@ variable "vpcs" {
 
 variable "ec2_appservers" {
   type = list(object({
-    ec2_instance_type                    = string
-    vpc_cidr                             = string
-    subnet_cidr                          = string
-    associate_public_ip_address          = optional(bool, false)
-    bastion_name                         = optional(string, "")
-    volume_type                          = optional(string, "gp3")
-    volume_size                          = optional(number, 10)
-    delete_on_termination                = optional(bool, true)
-    private_ssh_key_name                 = string
-    admin_public_ssh_key_names           = optional(list(string), [])
-    enable_bastion_access                = optional(bool, false)
-    bastion_security_group_id            = optional(string, "")
-    enable_ec2_instance_connect_endpoint = optional(bool, false)
-    os                                   = string
-    os_product                           = optional(string, "server")
-    os_architecture                      = optional(string, "amd64")
-    os_version                           = string
-    os_releases                          = map(string)
-    ami_virtualization                   = optional(string, "hvm")
-    ami_architectures                    = optional(map(string), { "amd64" = "x86_64" })
-    ami_owner_ids                        = optional(map(string), { "ubuntu" = "099720109477" }) # Canonical for Ubuntu AMIs
+    ec2_instance_type           = string
+    vpc_cidr                    = string
+    subnet_cidr                 = string
+    associate_public_ip_address = optional(bool, false)
+    bastion_name                = optional(string, "")
+    volume_type                 = optional(string, "gp3")
+    volume_size                 = optional(number, 10)
+    delete_on_termination       = optional(bool, true)
+    private_ssh_key_name        = string
+    admin_public_ssh_key_names  = optional(list(string), [])
+    os                          = string
+    os_product                  = optional(string, "server")
+    os_architecture             = optional(string, "amd64")
+    os_version                  = string
+    os_releases                 = map(string)
+    ami_virtualization          = optional(string, "hvm")
+    ami_architectures           = optional(map(string), { "amd64" = "x86_64" })
+    ami_owner_ids               = optional(map(string), { "ubuntu" = "099720109477" }) # Canonical for Ubuntu AMIs
 
+    enable_ec2_instance_connect_endpoint = optional(bool, false)
+
+    enable_bastion_access     = optional(bool, false)
+    bastion_security_group_id = optional(string, "")
+
+    additional_security_group_ids = optional(set(string), [])
+
+    attach_to_target_group = optional(bool, false)  # Whether to attach the EC2 instance to a target group
+    target_group_arn       = optional(string, null) # ARN of the target group to attach the EC2 instance to
+
+    additional_policy_arns = optional(list(string), [])
     iam_policy_statements = optional(set(object({
       sid       = string
       effect    = string
@@ -93,8 +101,30 @@ variable "ec2_appservers" {
       condition = optional(map(string))
       # principals  = optional(map(string))
     })))
+
+    userdata_config = optional(object({
+      install_gitlab                = optional(bool, false)
+      gitlab_version                = optional(string, "18.1.0-ee.0")
+      domain_name                   = optional(string, null)
+      external_loadbalancer_enabled = optional(bool, false)
+      external_postgres_enabled     = optional(bool, false)
+      external_redis_enabled        = optional(bool, false)
+      db_adapter                    = optional(string, null)
+      db_host                       = optional(string, null)
+      db_port                       = optional(number, null)
+      db_name                       = optional(string, null)
+      db_username                   = optional(string, null)
+      redis_host                    = optional(string, null)
+      redis_port                    = optional(number, null)
+    }))
+
     tags = map(string)
   }))
+
+  validation {
+    condition     = alltrue([for ec2 in var.ec2_appservers : can(cidrhost(ec2.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
 
   default = []
 }
@@ -111,6 +141,7 @@ variable "ec2_bastions" {
     private_ssh_key_name                 = string
     admin_public_ssh_key_names           = optional(list(string), [])
     enable_ec2_instance_connect_endpoint = optional(bool, false)
+    additional_security_group_ids        = optional(set(string), [])
     os                                   = string
     os_product                           = optional(string, "server")
     os_architecture                      = optional(string, "amd64")
@@ -121,6 +152,11 @@ variable "ec2_bastions" {
     ami_owner_ids                        = optional(map(string), { "ubuntu" = "099720109477" }) # Canonical for Ubuntu AMIs
     tags                                 = map(string)
   }))
+
+  validation {
+    condition     = alltrue([for ec2 in var.ec2_bastions : can(cidrhost(ec2.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
 
   default = []
 }
@@ -143,15 +179,16 @@ variable "admin_public_ips" {
 
 variable "load_balancers" {
   type = list(object({
-    # lb_sg_id                        = string
-    lb_name                    = string
-    lb_internal                = optional(bool, false)
-    lb_type                    = optional(string, "application")
-    vpc_cidr                   = string
-    public_subnets             = list(string)
-    domain_name                = string
-    lb_access_logs_bucket_name = optional(string, null)
-    waf_enabled                = optional(bool, false)
+    lb_name                          = string
+    lb_internal                      = optional(bool, false)
+    lb_type                          = optional(string, "application")
+    vpc_cidr                         = string
+    public_subnets                   = list(string)
+    domain_name                      = string
+    lb_access_logs_bucket_name       = optional(string, null)
+    waf_enabled                      = optional(bool, false)
+    add_security_rules_for_appserver = optional(bool, false)  # Whether to add security group rules to allow traffic from the application server to the load balancer
+    appserver_sg_id                  = optional(string, null) # Security group ID for the application server that needs traffic to be allowed in the security group of the load balancer
 
     target_groups = optional(list(object({
       name                             = string
@@ -184,6 +221,11 @@ variable "load_balancers" {
 
     tags = optional(map(string), {})
   }))
+
+  validation {
+    condition     = alltrue([for lb in var.load_balancers : can(cidrhost(lb.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
 
   default = []
 }
@@ -221,4 +263,76 @@ variable "s3_buckets" {
   }
 
   default = []
+}
+
+variable "rds_instances" {
+  type = set(object({
+    rds_name                   = string
+    vpc_cidr                   = string
+    private_subnets            = list(string)
+    db_instance_class          = string
+    db_engine                  = optional(string, "postgres")
+    db_engine_version          = string
+    db_port                    = optional(number, 5432)
+    db_instance_storage_type   = optional(string, "gp3")
+    db_allocated_storage       = optional(number, 20)
+    db_max_allocated_storage   = optional(number, 30)
+    db_backup_retention_period = optional(number, 30)
+    db_maintenance_window      = optional(string, "Sun:02:00-Sun:04:00")
+    db_name                    = string
+    db_username                = string
+
+    add_security_rules_for_appserver = optional(bool, false)  # Add rules to the RDS security group to allow access from the application server
+    appserver_sg_id                  = optional(string, null) # Security group ID for the application server that needs traffic to be allowed in the security group of the RDS instance
+    tags                             = optional(map(string), {})
+  }))
+
+  validation {
+    condition     = alltrue([for instance in var.rds_instances : can(regex("^[a-z0-9]+$", instance.db_name))])
+    error_message = "Database name must begin with a letter and contain only alphanumeric characters"
+  }
+
+  validation {
+    condition     = alltrue([for instance in var.rds_instances : can(regex("^[a-zA-Z0-9-]+$", instance.rds_name))])
+    error_message = "RDS instance name must be alphanumeric and can include hyphens."
+  }
+
+  validation {
+    condition     = alltrue([for rds in var.rds_instances : can(cidrhost(rds.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
+
+  default = []
+}
+
+variable "cache_instances" {
+  type = set(object({
+    vpc_cidr                         = string
+    private_subnets                  = list(string)
+    cache_cluster_id                 = string
+    cache_parameter_group_name       = string
+    cache_parameter_group_family     = optional(string, "redis7")
+    cache_engine                     = optional(string, "redis")
+    cache_engine_version             = optional(string, "7.1")
+    cache_node_type                  = string
+    cache_num_nodes                  = optional(number, 1)
+    cache_port                       = optional(number, 6379)
+    cache_maintenance_window         = optional(string, "Sun:02:00-Sun:04:00")
+    cache_snapshot_window            = optional(string, "05:00-09:00")
+    cache_snapshot_retention_limit   = optional(number, 7)
+    cache_multi_az_enabled           = optional(bool, false)
+    cache_log_group_name             = string
+    cache_log_retention_in_days      = optional(number, 365)
+    add_security_rules_for_appserver = optional(bool, false)  # Whether to add security group rules to allow traffic from the application server to the cache instance
+    appserver_sg_id                  = optional(string, null) # Security group ID for the application server that needs traffic to be allowed in the security group of the cache instance
+    tags                             = optional(map(string), {})
+  }))
+
+  validation {
+    condition     = alltrue([for rds in var.cache_instances : can(cidrhost(rds.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
+
+  default = []
+
 }

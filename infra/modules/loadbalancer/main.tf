@@ -107,4 +107,3 @@ resource "aws_s3_bucket_policy" "allow_loadbalancer_to_write_logs" {
   bucket = data.aws_s3_bucket.this.id
   policy = var.lb_type == "application" ? data.aws_iam_policy_document.allow_alb_logging.json : var.lb_type == "network" ? data.aws_iam_policy_document.allow_nlb_logging.json : null
 }
-

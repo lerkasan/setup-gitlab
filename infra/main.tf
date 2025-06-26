@@ -1,5 +1,5 @@
 module "vpc" {
-  for_each = { for vpc in var.vpcs : vpc.cidr_block => vpc }
+  for_each = { for vpc in var.vpc_networks : vpc.cidr_block => vpc }
 
   source = "./modules/vpc"
 
@@ -53,33 +53,64 @@ module "bastion" {
   tags                                   = each.value.tags
 }
 
+resource "aws_security_group" "additional_sg_for_appserver" {
+  for_each = { for ec2 in var.ec2_appservers : coalesce(ec2.tags["Name"], "noname") => ec2 }
+
+  name        = "${each.key}-additional-sg"
+  description = "Additional security group for EC2 instance ${each.key}"
+  vpc_id      = module.vpc[each.value.vpc_cidr].vpc_id
+
+  tags = merge(each.value.tags, {
+    Name = "${each.key}-additional-sg"
+  })
+}
+
 module "appserver" {
   for_each = { for ec2 in var.ec2_appservers : coalesce(ec2.tags["Name"], "noname") => ec2 }
 
   source = "./modules/ec2"
 
-  ec2_instance_type                      = each.value.ec2_instance_type
-  vpc_id                                 = module.vpc[each.value.vpc_cidr].vpc_id
-  subnet_id                              = module.vpc[each.value.vpc_cidr].subnets[each.value.subnet_cidr].id
-  associate_public_ip_address            = each.value.associate_public_ip_address
-  volume_type                            = each.value.volume_type
-  volume_size                            = each.value.volume_size
-  delete_on_termination                  = each.value.delete_on_termination
-  private_ssh_key_name                   = each.value.private_ssh_key_name
-  admin_public_ssh_key_names             = each.value.admin_public_ssh_key_names
-  enable_bastion_access                  = each.value.enable_bastion_access
-  bastion_security_group_id              = module.bastion[each.value.bastion_name].security_group_id
+  ec2_instance_type             = each.value.ec2_instance_type
+  vpc_id                        = module.vpc[each.value.vpc_cidr].vpc_id
+  subnet_id                     = module.vpc[each.value.vpc_cidr].subnets[each.value.subnet_cidr].id
+  associate_public_ip_address   = each.value.associate_public_ip_address
+  additional_security_group_ids = [aws_security_group.additional_sg_for_appserver[each.key].id]
+  volume_type                   = each.value.volume_type
+  volume_size                   = each.value.volume_size
+  delete_on_termination         = each.value.delete_on_termination
+  private_ssh_key_name          = each.value.private_ssh_key_name
+  admin_public_ssh_key_names    = each.value.admin_public_ssh_key_names
+
+  os                    = each.value.os
+  os_product            = each.value.os_product
+  os_architecture       = each.value.os_architecture
+  os_version            = each.value.os_version
+  os_releases           = each.value.os_releases
+  ami_virtualization    = each.value.ami_virtualization
+  ami_architectures     = each.value.ami_architectures
+  ami_owner_ids         = each.value.ami_owner_ids
+  iam_policy_statements = each.value.iam_policy_statements
+
+  enable_bastion_access     = each.value.enable_bastion_access
+  bastion_security_group_id = module.bastion[each.value.bastion_name].security_group_id
+
   enable_ec2_instance_connect_endpoint   = each.value.enable_ec2_instance_connect_endpoint
   ec2_connect_endpoint_security_group_id = module.ec2_instance_connect_endpoint[each.value.vpc_cidr].security_group_id
-  os                                     = each.value.os
-  os_product                             = each.value.os_product
-  os_architecture                        = each.value.os_architecture
-  os_version                             = each.value.os_version
-  os_releases                            = each.value.os_releases
-  ami_virtualization                     = each.value.ami_virtualization
-  ami_architectures                      = each.value.ami_architectures
-  ami_owner_ids                          = each.value.ami_owner_ids
-  tags                                   = each.value.tags
+
+  additional_policy_arns = [module.rds["gitlab"].policy_arn_for_access_to_ssm_params_and_secrets]
+  userdata_config        = each.value.userdata_config
+
+  attach_to_target_group = true
+  target_group_arn       = module.loadbalancer["gitlab-lb"].target_group_arns[0]
+
+  tags = each.value.tags
+
+  # Dependencies ensure that user data scripts of EC2 instances can access the necessary RDS, Elasticache and other resources 
+  depends_on = [
+    module.loadbalancer,
+    module.rds,
+    module.elasticache
+  ]
 }
 
 module "s3_bucket" {
@@ -100,16 +131,20 @@ module "loadbalancer" {
 
   source = "./modules/loadbalancer"
 
-  lb_name           = each.value.lb_name
-  lb_type           = each.value.lb_type
-  lb_internal       = each.value.lb_internal
-  domain_name       = each.value.domain_name
-  vpc_id            = module.vpc[each.value.vpc_cidr].vpc_id
-  public_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].public_subnets : subnet.id]
-  # public_subnet_ids          = module.vpc[each.value.vpc_cidr].public_subnets[*].id  
+  lb_name     = each.value.lb_name
+  lb_type     = each.value.lb_type
+  lb_internal = each.value.lb_internal
+  domain_name = each.value.domain_name
+
   target_groups              = each.value.target_groups
   listeners                  = each.value.listeners
   lb_access_logs_bucket_name = each.value.lb_access_logs_bucket_name
+
+  vpc_id            = module.vpc[each.value.vpc_cidr].vpc_id
+  public_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].public_subnets : subnet.id]
+
+  add_security_rules_for_appserver = true
+  appserver_sg_id                  = aws_security_group.additional_sg_for_appserver["GitLabServer"].id
 
   tags = each.value.tags
 
@@ -117,5 +152,58 @@ module "loadbalancer" {
   depends_on = [module.s3_bucket]
 }
 
+module "rds" {
+  for_each = { for rds in var.rds_instances : rds.rds_name => rds }
 
+  source = "./modules/rds"
 
+  rds_name                         = each.value.rds_name
+  database_instance_class          = each.value.db_instance_class
+  database_engine                  = each.value.db_engine
+  database_engine_version          = each.value.db_engine_version
+  database_storage_type            = each.value.db_instance_storage_type
+  database_allocated_storage       = each.value.db_allocated_storage
+  database_max_allocated_storage   = each.value.db_max_allocated_storage
+  database_backup_retention_period = each.value.db_backup_retention_period
+  database_maintenance_window      = each.value.db_maintenance_window
+
+  database_port     = each.value.db_port
+  database_name     = each.value.db_name
+  database_username = each.value.db_username
+
+  vpc_id             = module.vpc[each.value.vpc_cidr].vpc_id
+  private_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].private_subnets : subnet.id]
+
+  add_security_rules_for_appserver = true
+  appserver_sg_id                  = aws_security_group.additional_sg_for_appserver["GitLabServer"].id
+
+  tags = each.value.tags
+}
+
+module "elasticache" {
+  for_each = { for cache in var.cache_instances : cache.cache_cluster_id => cache }
+
+  source = "./modules/elasticache_cluster"
+
+  cache_cluster_id               = each.value.cache_cluster_id
+  cache_parameter_group_name     = each.value.cache_parameter_group_name
+  cache_parameter_group_family   = each.value.cache_parameter_group_family
+  cache_engine                   = each.value.cache_engine
+  cache_engine_version           = each.value.cache_engine_version
+  cache_node_type                = each.value.cache_node_type
+  cache_num_nodes                = each.value.cache_num_nodes
+  cache_port                     = each.value.cache_port
+  cache_maintenance_window       = each.value.cache_maintenance_window
+  cache_snapshot_window          = each.value.cache_snapshot_window
+  cache_snapshot_retention_limit = each.value.cache_snapshot_retention_limit
+  cache_log_group_name           = each.value.cache_log_group_name
+  cache_log_retention_in_days    = each.value.cache_log_retention_in_days
+
+  vpc_id             = module.vpc[each.value.vpc_cidr].vpc_id
+  private_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].private_subnets : subnet.id]
+
+  add_security_rules_for_appserver = true
+  appserver_sg_id                  = aws_security_group.additional_sg_for_appserver["GitLabServer"].id
+
+  tags = each.value.tags
+}
