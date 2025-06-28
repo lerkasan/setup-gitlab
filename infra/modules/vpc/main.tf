@@ -75,3 +75,15 @@ resource "aws_default_security_group" "this" {
     Name = join("_", [var.vpc_name, "default_sg"])
   })
 }
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [for table in aws_route_table.private : table.id]
+
+  tags = merge(var.tags, {
+    Name = join("_", [var.vpc_name, "s3_endpoint"])
+  })
+}

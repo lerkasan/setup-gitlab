@@ -1,4 +1,4 @@
-region = "us-east-1"
+region           = "us-east-1"
 admin_public_ips = ["12.34.56.78"]
 
 vpc_networks = [
@@ -13,111 +13,6 @@ vpc_networks = [
     flow_logs_retention_days = 365
 
     tags = {
-      "Environment" = "dev"
-      "Project"     = "gitlab"
-      "ManagedBy"   = "terraform"
-    }
-  }
-]
-
-ec2_bastions = [
-  {
-    ec2_instance_type           = "t3.medium"
-    vpc_cidr                    = "10.0.0.0/16"
-    subnet_cidr                 = "10.0.0.0/24"
-    associate_public_ip_address = true
-    volume_type                 = "gp3"
-    volume_size                 = 10
-    delete_on_termination       = true
-    private_ssh_key_name        = "bastion_ssh_key_pair"
-    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the bastion host
-    enable_ec2_instance_connect_endpoint = true
-    os                                   = "ubuntu"
-    os_product                           = "server"
-    os_architecture                      = "amd64"
-    os_version                           = "22.04"
-    os_releases                          = { "22.04" = "jammy" }
-    ami_virtualization                   = "hvm"
-    ami_architectures                    = { "amd64" = "x86_64" }
-    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
-    tags = {
-      "Name"        = "GitLabBastion"
-      "Environment" = "dev"
-      "Project"     = "gitlab"
-      "ManagedBy"   = "terraform"
-    }
-  }
-]
-
-ec2_appservers = [
-  {
-    ec2_instance_type     = "t3.xlarge"
-    vpc_cidr              = "10.0.0.0/16"
-    subnet_cidr           = "10.0.1.0/24"
-    volume_type           = "gp3"
-    volume_size           = 10
-    delete_on_termination = true
-    private_ssh_key_name  = "appserver_ssh_key_pair"
-    enable_bastion_access = true
-    bastion_name          = "GitLabBastion"
-    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the appserver host
-    enable_ec2_instance_connect_endpoint = true
-    os                                   = "ubuntu"
-    os_product                           = "server"
-    os_architecture                      = "amd64"
-    os_version                           = "22.04"
-    os_releases                          = { "22.04" = "jammy" }
-    ami_virtualization                   = "hvm"
-    ami_architectures                    = { "amd64" = "x86_64" }
-    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
-    iam_policy_statements = [
-      {
-        sid    = "EC2AccessS3Objects"
-        effect = "Allow"
-        actions = [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:DeleteObject",
-          "s3:PutObjectAcl"
-        ]
-        resources = ["arn:aws:s3:::lerkasan-gitlab-*/*"]
-      },
-      {
-        sid    = "EC2AccessS3"
-        effect = "Allow"
-        actions = [
-          "s3:ListBucket",
-          "s3:AbortMultipartUpload",
-          "s3:ListMultipartUploadParts",
-          "s3:ListBucketMultipartUploads"
-        ]
-        resources = ["arn:aws:s3:::lerkasan-gitlab-*"]
-      },
-      {
-        sid    = "SystemsManagerParameterReadOnly"
-        effect = "Allow"
-        actions = [
-          "ssm:GetParameter"
-        ]
-        resources = ["arn:aws:ssm:us-east-1:123456789012:parameter/gitlab_*"]
-      }
-    ]
-
-    userdata_config = {
-      install_gitlab                = true
-      gitlab_version                = "18.1.0-ee.0"
-      domain_name                   = "lerkasan.net"
-      external_loadbalancer_enabled = true
-      external_postgres_enabled     = true
-      external_redis_enabled        = true
-      db_adapter                    = "postgresql"
-      db_name                       = "gitlab"
-      db_port                       = 5432
-      redis_port                    = 6379
-    }
-
-    tags = {
-      "Name"        = "GitLabServer"
       "Environment" = "dev"
       "Project"     = "gitlab"
       "ManagedBy"   = "terraform"
@@ -152,14 +47,31 @@ s3_buckets = [{
     noncurrent_version_expiration_days = 90
     noncurrent_version_transition_days = 30
   }
-}]
+},
+{
+  name                = "lerkasan-gitlab-registry"
+  enable_encryption   = true
+  enable_key_rotation = true
+  enable_logging      = false
+  object_ownership    = "BucketOwnerEnforced"
+  versioning_status   = "Enabled"
+  lifecycle_rule = {
+    status                             = "Enabled"
+    prefix                             = ""
+    expiration_days                    = 0
+    noncurrent_version_expiration_days = 90
+    noncurrent_version_transition_days = 30
+  }
+}
+]
 
 load_balancers = [
   {
     lb_name                          = "gitlab-lb"
-    lb_type                          = "application" # "network"
+    lb_type                          = "application" # TODO: replace it with "network" loadbalancer to provide ccess to git over SSH for certain IP addresses.
     lb_internal                      = false
     domain_name                      = "lerkasan.net"
+    subdomains                       = ["gitlab", "registry"]
     vpc_cidr                         = "10.0.0.0/16"
     public_subnets                   = ["10.0.0.0/24", "10.0.2.0/24"]
     add_security_rules_for_appserver = true
@@ -195,7 +107,7 @@ load_balancers = [
         port              = 443
         protocol          = "HTTPS"
         default_action    = "forward"
-        ssh_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+        ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
         target_group_name = "gitlab-lb-http-target"
       }
     ]
@@ -263,3 +175,192 @@ cache_instances = [{
     ManagedBy   = "terraform"
   }
 }]
+
+ec2_bastions = [
+  {
+    ec2_instance_type           = "t3.medium"
+    vpc_cidr                    = "10.0.0.0/16"
+    subnet_cidr                 = "10.0.0.0/24"
+    associate_public_ip_address = true
+    volume_type                 = "gp3"
+    volume_size                 = 10
+    delete_on_termination       = true
+    private_ssh_key_name        = "bastion_rsschool_ssh_key_pair"
+    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the bastion host
+    enable_ec2_instance_connect_endpoint = true
+    os                                   = "ubuntu"
+    os_product                           = "server"
+    os_architecture                      = "amd64"
+    os_version                           = "22.04"
+    os_releases                          = { "22.04" = "jammy" }
+    ami_virtualization                   = "hvm"
+    ami_architectures                    = { "amd64" = "x86_64" }
+    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    tags = {
+      "Name"        = "GitLabBastion"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+ec2_appservers = [
+  {
+    ec2_instance_type     = "t3.xlarge"
+    vpc_cidr              = "10.0.0.0/16"
+    subnet_cidr           = "10.0.1.0/24"
+    volume_type           = "gp3"
+    volume_size           = 20
+    delete_on_termination = true
+    private_ssh_key_name  = "appserver_rsschool_ssh_key_pair"
+    enable_bastion_access = true
+    bastion_name          = "GitLabBastion"
+    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the appserver host
+    enable_ec2_instance_connect_endpoint = true
+    os                                   = "ubuntu"
+    os_product                           = "server"
+    os_architecture                      = "amd64"
+    os_version                           = "22.04"
+    os_releases                          = { "22.04" = "jammy" }
+    ami_virtualization                   = "hvm"
+    ami_architectures                    = { "amd64" = "x86_64" }
+    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    iam_policy_statements = [
+      {
+        sid    = "EC2AccessS3Objects"
+        effect = "Allow"
+        actions = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:PutObjectAcl"
+        ]
+        resources = ["arn:aws:s3:::lerkasan-gitlab-*/*"]
+      },
+      {
+        sid    = "EC2AccessS3"
+        effect = "Allow"
+        actions = [
+          "s3:ListBucket",
+          "s3:AbortMultipartUpload",
+          "s3:ListMultipartUploadParts",
+          "s3:ListBucketMultipartUploads"
+        ]
+        resources = ["arn:aws:s3:::lerkasan-gitlab-*"]
+      },
+      {
+        sid    = "SystemsManagerParameterReadOnly"
+        effect = "Allow"
+        actions = [
+          "ssm:GetParameter"
+        ]
+        resources = ["arn:aws:ssm:us-east-1:123456789012:parameter/gitlab_*"]
+      },
+      {
+        sid    = "KMSEncryptDecryptRegistryS3Bucket"
+        effect = "Allow"
+        actions = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
+        ]
+        resources = ["arn:aws:kms:us-east-1:123456789012:alias/lerkasan-gitlab-registry-bucket-encrypt-key"]
+      }
+      # These commented out policies are kept here to better represent the full scope of permisions that are needed by EC2 instance to be able to read SSM parameters 
+      # created by RDS and Elasticache as well as RDS master password in Secrets Manager.
+      # They are commented out because attachment of these policies is automated in RDS module (file ssm_params.tf)
+      # {
+      #   sid    = "SecretsManagerSecretReadOnly"
+      #   effect = "Allow"
+      #   actions = [
+      #     "secretsmanager:GetSecretValue"
+      #   ]
+      #   resources = ["arn:aws:secretsmanager:us-east-1:123456789012:secret:rds!db-7d67e03b-4a61-4c7e-bcbc-8f5d96f51e25-lO2qNX"]
+      # },
+      # {
+      #   sid    = "KMSDecryptKeyForSecretsManagerSecret"
+      #   effect = "Allow"
+      #   actions = [
+      #     "kms:Decrypt"
+      #   ]
+      #   resources = ["arn:aws:kms:us-east-1:123456789012:key/d063cafe-ff48-41f6-b688-34f5818a4ba8"]
+      # }
+    ]
+
+    userdata_config = {
+      install_gitlab                = true
+      gitlab_version                = "17.11.4-ee.0"
+      domain_name                   = "lerkasan.net"
+      external_loadbalancer_enabled = true
+      external_postgres_enabled     = true
+      external_redis_enabled        = true
+      registry_enabled              = true
+      registry_s3_storage_enabled   = true      
+      registry_s3_bucket            = "lerkasan-gitlab-registry"
+      db_adapter                    = "postgresql"
+      db_name                       = "gitlab"
+      db_port                       = 5432
+      redis_port                    = 6379
+    }
+
+    tags = {
+      "Name"        = "GitLabServer"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+ec2_runners = [
+  {
+    ec2_instance_type     = "t3.large"
+    vpc_cidr              = "10.0.0.0/16"
+    subnet_cidr           = "10.0.1.0/24"
+    volume_type           = "gp3"
+    volume_size           = 20
+    delete_on_termination = true
+    private_ssh_key_name  = "appserver_rsschool_ssh_key_pair"
+    enable_bastion_access = true
+    bastion_name          = "GitLabBastion"
+    # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the appserver host
+    enable_ec2_instance_connect_endpoint = true
+    os                                   = "ubuntu"
+    os_product                           = "server"
+    os_architecture                      = "amd64"
+    os_version                           = "22.04"
+    os_releases                          = { "22.04" = "jammy" }
+    ami_virtualization                   = "hvm"
+    ami_architectures                    = { "amd64" = "x86_64" }
+    ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    iam_policy_statements = [
+      {
+        sid    = "SystemsManagerParameterReadOnlyRunner"
+        effect = "Allow"
+        actions = [
+          "ssm:GetParameter"
+        ]
+        resources = ["arn:aws:ssm:us-east-1:123456789012:parameter/gitlab_*"]
+      }
+    ]
+
+    userdata_config = {
+      install_gitlab                = false
+      install_gitlab_runner         = true
+      gitlab_runner_version         = "17.11.3-1"
+      docker_version                = "5:28.3.0-1~ubuntu.22.04~jammy"
+      docker_image                  = "docker:28.3.0-dind-rootless"
+      domain_name                   = "lerkasan.net"
+    }
+
+    tags = {
+      "Name"        = "GitLabRunner"
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  }
+]

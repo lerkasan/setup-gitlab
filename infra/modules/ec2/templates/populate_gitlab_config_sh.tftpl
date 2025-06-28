@@ -1,7 +1,7 @@
-#!/usr/bin/env bash    
+#!/usr/bin/env bash
+set -eou pipefail  
     
 export GITLAB_ROOT_PASSWORD=$(aws ssm get-parameter --region "${region}" --name "gitlab_root_password" --with-decryption --query Parameter.Value --output text)
-export GITLAB_SHARED_RUNNERS_REGISTRATION_TOKEN=$(aws ssm get-parameter --region "${region}" --name "gitlab_shared_runners_registration_token" --with-decryption --query Parameter.Value --output text)
 export DB_HOST=$(aws ssm get-parameter --region "${region}" --name "gitlab_db_host" --with-decryption --query Parameter.Value --output text)
 export DB_MASTER_SECRET_ARN=$(aws ssm get-parameter --region "${region}" --name "gitlab_db_master_secret_arn" --with-decryption --query Parameter.Value --output text)
 export DB_USERNAME=$(aws secretsmanager get-secret-value --region "${region}" --secret-id "$DB_MASTER_SECRET_ARN" | jq -r '.SecretString' | jq -r '.username')

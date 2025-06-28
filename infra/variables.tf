@@ -103,12 +103,16 @@ variable "ec2_appservers" {
     })))
 
     userdata_config = optional(object({
+      # GitLab EE parameters    
+      domain_name                   = optional(string, "localhost")
       install_gitlab                = optional(bool, false)
-      gitlab_version                = optional(string, "18.1.0-ee.0")
-      domain_name                   = optional(string, null)
+      gitlab_version                = optional(string, "17.11.4-ee.0")
       external_loadbalancer_enabled = optional(bool, false)
       external_postgres_enabled     = optional(bool, false)
       external_redis_enabled        = optional(bool, false)
+      registry_enabled              = optional(bool, false)
+      registry_s3_storage_enabled   = optional(bool, false)
+      registry_s3_bucket            = optional(string, null)
       db_adapter                    = optional(string, null)
       db_host                       = optional(string, null)
       db_port                       = optional(number, null)
@@ -116,6 +120,11 @@ variable "ec2_appservers" {
       db_username                   = optional(string, null)
       redis_host                    = optional(string, null)
       redis_port                    = optional(number, null)
+      # GitLab Runner parameters
+      install_gitlab_runner = optional(bool, false)
+      gitlab_runner_version = optional(string, "17.11.4-1")
+      docker_version        = optional(string, "5:28.3.0-1~ubuntu.22.04~jammy")
+      docker_image          = optional(string, "docker:28.3.0-dind-rootless")
     }))
 
     tags = map(string)
@@ -185,6 +194,7 @@ variable "load_balancers" {
     vpc_cidr                         = string
     public_subnets                   = list(string)
     domain_name                      = string
+    subdomains                       = optional(set(string), [])
     lb_access_logs_bucket_name       = optional(string, null)
     waf_enabled                      = optional(bool, false)
     add_security_rules_for_appserver = optional(bool, false)  # Whether to add security group rules to allow traffic from the application server to the load balancer
@@ -211,12 +221,12 @@ variable "load_balancers" {
       protocol             = string
       default_action       = optional(string, "forward") # e.g. "forward", "redirect", "fixed-response", "authenticate-cognito", "authenticate-oidc"
       target_group_name    = optional(string, null)
-      redirect_host        = optional(string, null) # e.g. "api.lerkasan.net"
-      redirect_port        = optional(string, null) # e.g. "443"
-      redirect_protocol    = optional(string, null) # e.g. "HTTPS"
+      redirect_host        = optional(string, null)
+      redirect_port        = optional(string, null)
+      redirect_protocol    = optional(string, null)
       redirect_status_code = optional(string, null) # e.g. "HTTP_301"
       ssl_policy           = optional(string, null) # e.g. "ELBSecurityPolicy-TLS13-1-2-2021-06"
-      certificate_arn      = optional(string, null) # e.g. "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+      certificate_arn      = optional(string, null)
     }))
 
     tags = optional(map(string), {})
@@ -335,4 +345,68 @@ variable "cache_instances" {
 
   default = []
 
+}
+
+
+
+
+variable "ec2_runners" {
+  type = list(object({
+    ec2_instance_type           = string
+    vpc_cidr                    = string
+    subnet_cidr                 = string
+    associate_public_ip_address = optional(bool, false)
+    bastion_name                = optional(string, "")
+    volume_type                 = optional(string, "gp3")
+    volume_size                 = optional(number, 10)
+    delete_on_termination       = optional(bool, true)
+    private_ssh_key_name        = string
+    admin_public_ssh_key_names  = optional(list(string), [])
+    os                          = string
+    os_product                  = optional(string, "server")
+    os_architecture             = optional(string, "amd64")
+    os_version                  = string
+    os_releases                 = map(string)
+    ami_virtualization          = optional(string, "hvm")
+    ami_architectures           = optional(map(string), { "amd64" = "x86_64" })
+    ami_owner_ids               = optional(map(string), { "ubuntu" = "099720109477" }) # Canonical for Ubuntu AMIs
+
+    enable_ec2_instance_connect_endpoint = optional(bool, false)
+
+    enable_bastion_access     = optional(bool, false)
+    bastion_security_group_id = optional(string, "")
+
+    additional_security_group_ids = optional(set(string), [])
+
+    attach_to_target_group = optional(bool, false)  # Whether to attach the EC2 instance to a target group
+    target_group_arn       = optional(string, null) # ARN of the target group to attach the EC2 instance to
+
+    additional_policy_arns = optional(list(string), [])
+    iam_policy_statements = optional(set(object({
+      sid       = string
+      effect    = string
+      actions   = list(string)
+      resources = list(string)
+      condition = optional(map(string))
+      # principals  = optional(map(string))
+    })))
+
+    userdata_config = optional(object({
+      domain_name = optional(string, "localhost")
+      # GitLab Runner parameters
+      install_gitlab_runner = optional(bool, false)
+      gitlab_runner_version = optional(string, "17.11.4-1")
+      docker_version        = optional(string, "5:28.3.0-1~ubuntu.22.04~jammy")
+      docker_image          = optional(string, "docker:28.3.0-dind-rootless")
+    }))
+
+    tags = map(string)
+  }))
+
+  validation {
+    condition     = alltrue([for ec2 in var.ec2_runners : can(cidrhost(ec2.vpc_cidr, 32))])
+    error_message = "VPC CIDR must be a valid IPv4 CIDR."
+  }
+
+  default = []
 }

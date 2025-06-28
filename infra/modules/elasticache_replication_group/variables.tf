@@ -51,7 +51,7 @@ variable "cache_db" {
 
 variable "cache_node_type" {
   description = "Cache node type"
-  type        = string  # e.g. "cache.t3.micro"
+  type        = string
 }
 
 variable "num_cache_clusters" {

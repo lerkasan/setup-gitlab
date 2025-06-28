@@ -1,9 +1,12 @@
 gitlab_rails['initial_root_password'] = "$GITLAB_ROOT_PASSWORD"
-gitlab_rails['initial_shared_runners_registration_token'] = "$GITLAB_SHARED_RUNNERS_REGISTRATION_TOKEN"
 
 %{ if domain_name != null }
-external_url "https://${domain_name}"
+external_url "https://gitlab.${domain_name}"
+
+%{ if registry_enabled }
 registry_external_url "https://registry.${domain_name}"
+gitlab_rails['registry_host'] = "registry.${domain_name}"
+%{ endif }
 %{ endif }
 
 %{ if external_loadbalancer_enabled }
@@ -15,6 +18,25 @@ nginx['listen_https'] = false
 registry_nginx['enable'] = true
 registry_nginx['listen_https'] = false
 registry_nginx['listen_port'] = 80
+%{ endif }
+
+%{ if registry_enabled }
+registry['enable'] = true
+registry['registry_http_addr'] = "localhost:5000"
+registry['log_directory'] = "/var/log/gitlab/registry"
+registry['env_directory'] = "/opt/gitlab/etc/registry/env"
+
+%{ if registry_s3_storage_enabled }
+registry['storage'] = {
+  's3_v2' => {
+    'bucket' => '${registry_s3_bucket}',
+    'region' => '${region}',
+    'maxrequestspersecond' => 100,
+    'encrypt' => true,
+    'pathstyle' => false
+  }
+}
+%{ endif }
 %{ endif }
 
 %{ if vpc_cidr != null }

@@ -1,6 +1,0 @@
-sudo gitlab-ctl reconfigure
-
-sudo gitlab-rake gitlab:check
-sudo gitlab-ctl status
-
-curl http://127.0.0.1/-/readiness

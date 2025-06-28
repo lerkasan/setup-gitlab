@@ -6,7 +6,7 @@ resource "aws_elasticache_replication_group" "this" {
   engine               = var.cache_engine
   engine_version       = var.cache_engine_version
   port                 = var.cache_port
- 
+
   automatic_failover_enabled  = true
   preferred_cache_cluster_azs = local.availability_zones
   subnet_group_name           = aws_elasticache_subnet_group.this.name

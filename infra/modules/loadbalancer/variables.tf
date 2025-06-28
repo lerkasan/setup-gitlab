@@ -3,6 +3,12 @@ variable "domain_name" {
   type        = string
 }
 
+variable "subdomains" {
+  description = "A set of subdomains to create Route53 records for"
+  type        = set(string)
+  default     = []
+}
+
 # ---------------- Network parameters -------------------
 
 variable "vpc_id" {
@@ -68,12 +74,12 @@ variable "listeners" {
     protocol             = string
     default_action       = optional(string, "forward") # e.g. "forward", "redirect", "fixed-response", "authenticate-cognito", "authenticate-oidc"
     target_group_name    = optional(string, null)
-    redirect_host        = optional(string, null) # e.g. "api.lerkasan.net"
-    redirect_port        = optional(string, null) # e.g. "443"
-    redirect_protocol    = optional(string, null) # e.g. "HTTPS"
+    redirect_host        = optional(string, null)
+    redirect_port        = optional(string, null)
+    redirect_protocol    = optional(string, null)
     redirect_status_code = optional(string, null) # e.g. "HTTP_301"
     ssl_policy           = optional(string, null) # e.g. "ELBSecurityPolicy-TLS13-1-2-2021-06"
-    certificate_arn      = optional(string, null) # e.g. "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+    certificate_arn      = optional(string, null)
   }))
 
   validation {
@@ -120,7 +126,7 @@ variable "target_groups" {
     port                             = number
     protocol                         = string
     preserve_client_ip               = optional(bool, null)
-    deregistration_delay             = optional(number, 300) # in seconds
+    deregistration_delay             = optional(number, 300)
     health_check_healthy_threshold   = optional(number, 3)
     health_check_unhealthy_threshold = optional(number, 3)
     health_check_interval            = optional(number, 60)
@@ -128,7 +134,7 @@ variable "target_groups" {
     health_check_path                = optional(string, null)
     health_check_matcher             = optional(string, null)        # e.g. HTTP code "200"
     stickiness_type                  = optional(string, "lb_cookie") # e.g. "lb_cookie", "app_cookie", "source_ip", "source_ip_dest_ip", "source_ip_dest_ip_proto"
-    cookie_duration                  = optional(number, 86400)       # in seconds
+    cookie_duration                  = optional(number, 86400)       # 1 day in seconds
   }))
 
   validation {

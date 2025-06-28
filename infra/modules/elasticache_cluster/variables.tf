@@ -47,7 +47,7 @@ variable "cache_parameter_group_family" {
 
 variable "cache_node_type" {
   description = "Cache node type"
-  type        = string  # e.g. "cache.t3.micro"
+  type        = string
 }
 
 variable "cache_num_nodes" {

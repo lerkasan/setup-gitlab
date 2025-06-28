@@ -189,19 +189,30 @@ variable "target_group_arn" {
 variable "userdata_config" {
   description = "Application configuration for the EC2 instance"
   type = object({
+    # GitLab EE parameters    
+    domain_name                   = optional(string, "localhost")
     install_gitlab                = optional(bool, false)
-    gitlab_version                = optional(string, "18.1.0-ee.0")
-    domain_name                   = optional(string, null)
+    gitlab_version                = optional(string, "17.11.4-ee.0")
     external_loadbalancer_enabled = optional(bool, false)
     external_postgres_enabled     = optional(bool, false)
     external_redis_enabled        = optional(bool, false)
-    db_adapter                    = optional(string, null)
-    db_host                       = optional(string, null)
-    db_port                       = optional(number, null)
-    db_name                       = optional(string, null)
-    db_username                   = optional(string, null)
-    redis_host                    = optional(string, null)
-    redis_port                    = optional(number, null)
+    registry_enabled              = optional(bool, false)
+    registry_s3_storage_enabled   = optional(bool, false)
+    registry_s3_bucket            = optional(string, null)
+    # registry_s3_vpc_regionendpoint = optional(string, null)
+    db_adapter  = optional(string, null)
+    db_host     = optional(string, null)
+    db_port     = optional(number, null)
+    db_name     = optional(string, null)
+    db_username = optional(string, null)
+    redis_host  = optional(string, null)
+    redis_port  = optional(number, null)
+    # GitLab Runner parameters
+    install_gitlab_runner = optional(bool, false)
+    gitlab_runner_version = optional(string, "17.11.4-1")
+    docker_version        = optional(string, "5:28.3.0-1~ubuntu.22.04~jammy")
+    docker_image          = optional(string, "docker:28.3.0-dind-rootless")
   })
+
   default = {}
 }

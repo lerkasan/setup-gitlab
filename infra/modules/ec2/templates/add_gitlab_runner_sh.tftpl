@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -eou pipefail
+
+curl "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" -o /tmp/add_gitlab_runner_repo.sh
+chmod +x /tmp/add_gitlab_runner_repo.sh
+sudo /tmp/add_gitlab_runner_repo.sh
+sudo apt-get install -y gitlab-runner=${gitlab_runner_version} gitlab-runner-helper-images=${gitlab_runner_version}
+sudo apt-mark hold gitlab-runner gitlab-runner-helper-images
+
+PERSONAL_TOKEN=$(aws ssm get-parameter --region "${region}" --name "gitlab_personal_token" --with-decryption --query Parameter.Value --output text)
+
+RUNNER_TOKEN=$(curl --silent --request POST \
+                             --url "https://gitlab.${domain_name}/api/v4/user/runners" \
+                             --data "runner_type=instance_type" \
+                             --data "description=docker_runner" \
+                             --data "tag_list=docker,linux" \
+                             --header "PRIVATE-TOKEN: $PERSONAL_TOKEN" | jq -r '.token')
+
+METADATA_TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $METADATA_TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
+
+gitlab-runner register --non-interactive \
+                       --name="$INSTANCE_ID" \
+                       --url="https://gitlab.${domain_name}" \
+                       --token="$RUNNER_TOKEN" \
+                       --request-concurrency="12" \
+                       --executor="docker" \
+                       --docker-image="${docker_image}" \
+                       --docker-privileged \
+                       --docker-volumes "/certs/client"
+
+sudo usermod -aG docker gitlab-runner
+
+systemctl restart gitlab-runner
+
+sudo -u gitlab-runner -H docker info

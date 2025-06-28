@@ -18,7 +18,7 @@ resource "aws_kms_key" "sm_secret_encrypt_key" {
   })
 }
 
-# Causes error on terraform apply: 
+# Causes error on terraform apply: TODO: Research current key policy
 # operation error KMS: PutKeyPolicy, https response error StatusCode: 400, RequestID: 1622d709-9517-4d5c-94d6-331d0e168816, MalformedPolicyDocumentException: The new key policy will not allow you to update the key policy in the future
 # resource "aws_kms_key_policy" "db_encrypt_key_policy" {
 #   key_id = aws_kms_key.sm_secret_encrypt_key.id
