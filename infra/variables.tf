@@ -89,8 +89,8 @@ variable "ec2_appservers" {
 
     additional_security_group_ids = optional(set(string), [])
 
-    attach_to_target_group = optional(bool, false)  # Whether to attach the EC2 instance to a target group
-    target_group_arn       = optional(string, null) # ARN of the target group to attach the EC2 instance to
+    attach_to_target_group = optional(bool, false)     # Whether to attach the EC2 instance to a target group
+    target_group_arns      = optional(set(string), []) # ARN of the target group to attach the EC2 instance to
 
     additional_policy_arns = optional(list(string), [])
     iam_policy_statements = optional(set(object({
@@ -192,16 +192,18 @@ variable "load_balancers" {
     lb_internal                      = optional(bool, false)
     lb_type                          = optional(string, "application")
     vpc_cidr                         = string
-    public_subnets                   = list(string)
+    subnets                          = list(string)
     domain_name                      = string
     subdomains                       = optional(set(string), [])
     lb_access_logs_bucket_name       = optional(string, null)
     waf_enabled                      = optional(bool, false)
-    add_security_rules_for_appserver = optional(bool, false)  # Whether to add security group rules to allow traffic from the application server to the load balancer
-    appserver_sg_id                  = optional(string, null) # Security group ID for the application server that needs traffic to be allowed in the security group of the load balancer
+    add_security_rules_for_appserver = optional(bool, false)       # Whether to add security group rules to allow traffic from the application server to the load balancer
+    appserver_sg_id                  = optional(string, null)      # Security group ID for the application server that needs traffic to be allowed in the security group of the load balancer
+    ssh_cidrs                        = optional(set(string), null) # CIDRs to allow SSH access to the load balancer (for NLB only)
 
     target_groups = optional(list(object({
       name                             = string
+      target_type                      = optional(string, "instance") # e.g. "instance", "ip", "lambda", "alb"
       port                             = number
       protocol                         = string
       preserve_client_ip               = optional(bool, null)
@@ -210,9 +212,10 @@ variable "load_balancers" {
       health_check_unhealthy_threshold = optional(number, 3)
       health_check_interval            = optional(number, 60)
       health_check_timeout             = optional(number, 30)
+      health_check_protocol            = optional(string, "HTTP") # e.g. "HTTP", "HTTPS", "TCP", "TLS"
       health_check_path                = optional(string, null)
       health_check_matcher             = optional(string, null)
-      stickiness_type                  = optional(string, "lb_cookie")
+      stickiness_type                  = optional(string, null)
       cookie_duration                  = optional(number, 86400) # 1 day in seconds
     })))
 
@@ -228,6 +231,9 @@ variable "load_balancers" {
       ssl_policy           = optional(string, null) # e.g. "ELBSecurityPolicy-TLS13-1-2-2021-06"
       certificate_arn      = optional(string, null)
     }))
+
+    attach_to_target_group = optional(bool, false)     # Whether to attach the ALB to a target group of NLB
+    target_group_names     = optional(set(string), []) # Names of the target group to attach the ALB to
 
     tags = optional(map(string), {})
   }))
@@ -347,9 +353,6 @@ variable "cache_instances" {
 
 }
 
-
-
-
 variable "ec2_runners" {
   type = list(object({
     ec2_instance_type           = string
@@ -377,9 +380,6 @@ variable "ec2_runners" {
     bastion_security_group_id = optional(string, "")
 
     additional_security_group_ids = optional(set(string), [])
-
-    attach_to_target_group = optional(bool, false)  # Whether to attach the EC2 instance to a target group
-    target_group_arn       = optional(string, null) # ARN of the target group to attach the EC2 instance to
 
     additional_policy_arns = optional(list(string), [])
     iam_policy_statements = optional(set(object({

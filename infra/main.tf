@@ -53,18 +53,6 @@ module "bastion" {
   tags                                   = each.value.tags
 }
 
-resource "aws_security_group" "additional_sg_for_appserver" {
-  for_each = { for ec2 in var.ec2_appservers : coalesce(ec2.tags["Name"], "noname") => ec2 }
-
-  name        = "${each.key}-additional-sg"
-  description = "Additional security group for EC2 instance ${each.key}"
-  vpc_id      = module.vpc[each.value.vpc_cidr].vpc_id
-
-  tags = merge(each.value.tags, {
-    Name = "${each.key}-additional-sg"
-  })
-}
-
 module "appserver" {
   for_each = { for ec2 in var.ec2_appservers : coalesce(ec2.tags["Name"], "noname") => ec2 }
 
@@ -101,7 +89,10 @@ module "appserver" {
   userdata_config        = each.value.userdata_config
 
   attach_to_target_group = true
-  target_group_arn       = module.loadbalancer["gitlab-lb"].target_group_arns[0]
+  target_group_arns = {
+    "gitlab-alb-http-target" = module.loadbalancer["gitlab-alb"].target_groups["gitlab-alb-http-target"].arn,
+    "gitlab-nlb-ssh-target"  = module.loadbalancer["gitlab-nlb"].target_groups["gitlab-nlb-ssh-target"].arn
+  }
 
   tags = each.value.tags
 
@@ -139,13 +130,17 @@ module "loadbalancer" {
 
   target_groups              = each.value.target_groups
   listeners                  = each.value.listeners
+  ssh_cidrs                  = each.value.ssh_cidrs
   lb_access_logs_bucket_name = each.value.lb_access_logs_bucket_name
 
-  vpc_id            = module.vpc[each.value.vpc_cidr].vpc_id
-  public_subnet_ids = [for subnet in module.vpc[each.value.vpc_cidr].public_subnets : subnet.id]
+  vpc_id     = module.vpc[each.value.vpc_cidr].vpc_id
+  subnet_ids = each.value.lb_internal ? [for subnet in module.vpc[each.value.vpc_cidr].private_subnets : subnet.id] : [for subnet in module.vpc[each.value.vpc_cidr].public_subnets : subnet.id]
 
   add_security_rules_for_appserver = true
   appserver_sg_id                  = aws_security_group.additional_sg_for_appserver["GitLabServer"].id
+
+  attach_to_target_group = each.value.attach_to_target_group
+  target_group_names     = each.value.target_group_names
 
   tags = each.value.tags
 
@@ -208,8 +203,6 @@ module "elasticache" {
 
   tags = each.value.tags
 }
-
-
 
 module "runner" {
   for_each = { for ec2 in var.ec2_runners : coalesce(ec2.tags["Name"], "noname") => ec2 }

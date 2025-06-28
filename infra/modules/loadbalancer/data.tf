@@ -19,6 +19,10 @@ data "aws_acm_certificate" "this" {
   most_recent = true
 }
 
+# Looks like if I use the same bucket for both ALB and NLB access logs, then the last policy will overwrite the first one. 
+# So I will need to create one combined policy for both ALB and NLB. Or use two different s3 buckets for ALB and NLB access logs.
+# Creating one combined policy for both ALB and NLB didn't help.
+# So I have to use two different s3 buckets for ALB and NLB access logs.
 data "aws_iam_policy_document" "allow_alb_logging" {
   statement {
     sid       = "AllowAppLoadBalancerWriteOnly"
@@ -91,4 +95,10 @@ data "aws_iam_policy_document" "allow_nlb_logging" {
       values   = ["arn:aws:logs:${data.aws_s3_bucket.this.region}:${data.aws_caller_identity.current.account_id}:*"]
     }
   }
+}
+
+data "aws_lb_target_group" "this" {
+  for_each = var.attach_to_target_group ? var.target_group_names : []
+
+  name = each.value
 }

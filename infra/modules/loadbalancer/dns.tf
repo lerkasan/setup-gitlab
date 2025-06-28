@@ -1,4 +1,6 @@
 resource "aws_route53_record" "this" {
+  count = var.lb_internal ? 0 : 1
+
   zone_id = data.aws_route53_zone.this.zone_id
   name    = data.aws_route53_zone.this.name
   type    = "A"
@@ -12,7 +14,7 @@ resource "aws_route53_record" "this" {
 
 
 resource "aws_route53_record" "subdomain" {
-  for_each = var.subdomains
+  for_each = var.lb_internal ? [] : var.subdomains
 
   zone_id = data.aws_route53_zone.this.zone_id
   name    = join(".", [each.key, data.aws_route53_zone.this.name])
@@ -37,7 +39,7 @@ resource "aws_route53_record" "gitlab_subdomain_validation" {
   # TODO: figure out nested for_each and avoid duplication of resource "aws_route53_record" "gitlab_subdomain_validation" and "registry_subdomain_validation"
   # https://discuss.hashicorp.com/t/how-to-deal-with-nested-for-each-loops-in-dependent-ressources/50551/2
 
-  for_each = {
+  for_each = var.lb_internal ? {} : {
     for dvo in aws_acm_certificate.subdomain["gitlab"].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
@@ -57,7 +59,7 @@ resource "aws_route53_record" "registry_subdomain_validation" {
   # TODO: figure out nested for_each and avoid duplication of resource "aws_route53_record" "gitlab_subdomain_validation" and "registry_subdomain_validation"
   # https://discuss.hashicorp.com/t/how-to-deal-with-nested-for-each-loops-in-dependent-ressources/50551/2
 
-  for_each = {
+  for_each = var.lb_internal ? {} : {
     for dvo in aws_acm_certificate.subdomain["registry"].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
@@ -75,7 +77,7 @@ resource "aws_route53_record" "registry_subdomain_validation" {
 
 
 resource "aws_lb_listener_certificate" "subdomain" {
-  for_each = var.subdomains
+  for_each = var.lb_internal ? var.subdomains : []
 
   listener_arn    = aws_lb_listener.this[local.https_port].arn
   certificate_arn = aws_acm_certificate.subdomain[each.key].arn

@@ -22,6 +22,11 @@ resource "aws_instance" "this" {
     http_tokens = "required"
   }
 
+  # https://discuss.hashicorp.com/t/handle-changed-image-ami-on-aws/28652
+  lifecycle {
+    ignore_changes = [ami]
+  }
+
   tags = var.tags
 }
 
@@ -77,8 +82,8 @@ resource "aws_iam_role_policy_attachment" "additional_policies" {
 }
 
 resource "aws_lb_target_group_attachment" "this" {
-  count = var.attach_to_target_group ? 1 : 0
+  for_each = var.attach_to_target_group ? var.target_group_arns : {}
 
-  target_group_arn = var.target_group_arn
+  target_group_arn = each.value
   target_id        = aws_instance.this.id
 }

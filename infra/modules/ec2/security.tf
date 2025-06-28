@@ -9,7 +9,7 @@ resource "aws_security_group" "ec2_instance" {
 }
 
 resource "aws_security_group_rule" "allow_inbound_ssh_to_ec2_instance_from_admin_ip" {
-  for_each = var.admin_public_ips != null ? toset(var.admin_public_ips) : toset([])
+  for_each = var.admin_public_ips != null ? toset(var.admin_public_ips) : []
 
   type              = "ingress"
   description       = "SSH ingress"
@@ -87,28 +87,6 @@ resource "aws_security_group_rule" "allow_outbound_http_from_ec2_instance_to_all
   to_port           = local.http_port
   protocol          = "tcp"
   cidr_blocks       = [local.anywhere]
-  security_group_id = aws_security_group.ec2_instance.id
-}
-
-resource "aws_security_group_rule" "allow_inbound_icmp_to_ec2_instance_from_vpc_cidr" {
-  type        = "ingress"
-  description = "ICMP ingress"
-  # https://blog.jwr.io/terraform/icmp/ping/security/groups/2018/02/02/terraform-icmp-rules.html
-  from_port         = 8
-  to_port           = 0
-  protocol          = "icmp"
-  cidr_blocks       = [data.aws_vpc.this.cidr_block]
-  security_group_id = aws_security_group.ec2_instance.id
-}
-
-resource "aws_security_group_rule" "allow_outbound_icmp_from_ec2_instance_to_vpc_cidr" {
-  type        = "egress"
-  description = "ICMP egress"
-  # https://blog.jwr.io/terraform/icmp/ping/security/groups/2018/02/02/terraform-icmp-rules.html
-  from_port         = 8
-  to_port           = 0
-  protocol          = "icmp"
-  cidr_blocks       = [data.aws_vpc.this.cidr_block]
   security_group_id = aws_security_group.ec2_instance.id
 }
 

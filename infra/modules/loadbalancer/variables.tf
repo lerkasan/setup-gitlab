@@ -16,8 +16,8 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "public_subnet_ids" {
-  description = "A list of public subnets ids"
+variable "subnet_ids" {
+  description = "A list of subnets ids"
   type        = list(string)
 }
 
@@ -123,6 +123,7 @@ variable "target_groups" {
   description = "A map of target groups for a load balancer"
   type = set(object({
     name                             = string
+    target_type                      = optional(string, "instance") # e.g. "instance", "ip", "lambda", "alb"
     port                             = number
     protocol                         = string
     preserve_client_ip               = optional(bool, null)
@@ -131,10 +132,11 @@ variable "target_groups" {
     health_check_unhealthy_threshold = optional(number, 3)
     health_check_interval            = optional(number, 60)
     health_check_timeout             = optional(number, 30)
+    health_check_protocol            = optional(string, "HTTP") # e.g. "HTTP", "HTTPS", "TCP", "TLS", "UDP"
     health_check_path                = optional(string, null)
-    health_check_matcher             = optional(string, null)        # e.g. HTTP code "200"
-    stickiness_type                  = optional(string, "lb_cookie") # e.g. "lb_cookie", "app_cookie", "source_ip", "source_ip_dest_ip", "source_ip_dest_ip_proto"
-    cookie_duration                  = optional(number, 86400)       # 1 day in seconds
+    health_check_matcher             = optional(string, null)  # e.g. HTTP code "200"
+    stickiness_type                  = optional(string, null)  # e.g. "lb_cookie", "app_cookie", "source_ip", "source_ip_dest_ip", "source_ip_dest_ip_proto"
+    cookie_duration                  = optional(number, 86400) # 1 day in seconds
   }))
 
   validation {
@@ -174,21 +176,21 @@ variable "target_groups" {
 
   validation {
     condition = alltrue([
-      for tg in var.target_groups : contains(["lb_cookie", "app_cookie", "source_ip", "source_ip_dest_ip", "source_ip_dest_ip_proto"], tg.stickiness_type)
+      for tg in var.target_groups : tg.stickiness_type == null ? true : contains(["lb_cookie", "app_cookie", "source_ip", "source_ip_dest_ip", "source_ip_dest_ip_proto"], tg.stickiness_type)
     ])
     error_message = "Valid values for a property stickiness_type in a variable target_groups are lb_cookie, app_cookie."
   }
 
   validation {
     condition = alltrue([
-      for tg in var.target_groups : tonumber(tg.cookie_duration) == floor(tg.cookie_duration)
+      for tg in var.target_groups : tg.cookie_duration == null ? true : tonumber(tg.cookie_duration) == floor(tg.cookie_duration)
     ])
     error_message = "cookie_duration property of a variable target_groups should be an integer!"
   }
 
   validation {
     condition = alltrue([
-      for tg in var.target_groups : tg.cookie_duration >= 0
+      for tg in var.target_groups : tg.cookie_duration == null ? true : tg.cookie_duration >= 0
     ])
     error_message = "cookie_duration property of a variable target_groups should be a positive integer!"
   }
@@ -249,10 +251,36 @@ variable "target_groups" {
   }
 }
 
+variable "attach_to_target_group" {
+  description = "Whether to attach the ALB to a target group"
+  type        = bool
+  default     = false
+}
+
+variable "target_group_names" {
+  description = "Names of the target group to attach the ALB to"
+  type        = set(string)
+  default     = []
+}
+
 variable "waf_enabled" {
   description = "Enable WAF for the load balancer"
   type        = bool
   default     = false
+}
+
+variable "ssh_cidrs" {
+  description = "A set of CIDR blocks to allow SSH access to the load balancer"
+  type        = set(string)
+
+  validation {
+    condition = var.ssh_cidrs == null ? true : alltrue([
+      for cidr in var.ssh_cidrs : can(cidr)
+    ])
+    error_message = "SSH CIDRs must nave valid IPv4 CIDRs."
+  }
+
+  default = []
 }
 
 variable "tags" {

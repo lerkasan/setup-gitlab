@@ -180,10 +180,10 @@ variable "attach_to_target_group" {
   default     = false
 }
 
-variable "target_group_arn" {
-  description = "ARN of the target group to attach the EC2 instance to"
-  type        = string
-  default     = null
+variable "target_group_arns" {
+  description = "ARNs of the target group to attach the EC2 instance to"
+  type        = map(string)
+  default     = {}
 }
 
 variable "userdata_config" {

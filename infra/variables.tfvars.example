@@ -34,12 +34,12 @@ ec2_instance_connect_endpoints = [
 ]
 
 s3_buckets = [{
-  name                = "lerkasan-gitlab-lb-access-logs"
-  enable_encryption   = true
+  name              = "lerkasan-gitlab-alb-access-logs"
+  enable_encryption = true
   enable_key_rotation = true
-  enable_logging      = false
-  object_ownership    = "BucketOwnerEnforced"
-  versioning_status   = "Enabled"
+  enable_logging    = false
+  object_ownership  = "BucketOwnerEnforced"
+  versioning_status = "Enabled"
   lifecycle_rule = {
     status                             = "Enabled"
     prefix                             = ""
@@ -47,39 +47,141 @@ s3_buckets = [{
     noncurrent_version_expiration_days = 90
     noncurrent_version_transition_days = 30
   }
-},
-{
-  name                = "lerkasan-gitlab-registry"
-  enable_encryption   = true
-  enable_key_rotation = true
-  enable_logging      = false
-  object_ownership    = "BucketOwnerEnforced"
-  versioning_status   = "Enabled"
-  lifecycle_rule = {
-    status                             = "Enabled"
-    prefix                             = ""
-    expiration_days                    = 0
-    noncurrent_version_expiration_days = 90
-    noncurrent_version_transition_days = 30
+  },
+  {
+    name              = "lerkasan-gitlab-nlb-access-logs"
+    enable_encryption = true
+    enable_key_rotation = true
+    enable_logging    = false
+    object_ownership  = "BucketOwnerEnforced"
+    versioning_status = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name                = "lerkasan-gitlab-registry"
+    enable_encryption   = true
+    enable_key_rotation = true
+    enable_logging      = false
+    object_ownership    = "BucketOwnerEnforced"
+    versioning_status   = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
   }
-}
 ]
 
+# https://stackoverflow.com/questions/66582892/use-aws-loadbalancer-for-https-and-ssh
+# https://aws.amazon.com/de/blogs/networking-and-content-delivery/application-load-balancer-type-target-group-for-network-load-balancer/
 load_balancers = [
   {
-    lb_name                          = "gitlab-lb"
-    lb_type                          = "application" # TODO: replace it with "network" loadbalancer to provide ccess to git over SSH for certain IP addresses.
+    lb_name                          = "gitlab-nlb"
+    lb_type                          = "network"
     lb_internal                      = false
     domain_name                      = "lerkasan.net"
     subdomains                       = ["gitlab", "registry"]
     vpc_cidr                         = "10.0.0.0/16"
-    public_subnets                   = ["10.0.0.0/24", "10.0.2.0/24"]
+    subnets                          = ["10.0.0.0/24", "10.0.2.0/24"]
     add_security_rules_for_appserver = true
-    lb_access_logs_bucket_name       = "lerkasan-gitlab-lb-access-logs"
+    ssh_cidrs                        = ["12.34.56.78/32"]
+    lb_access_logs_bucket_name       = "lerkasan-gitlab-nlb-access-logs"
 
     target_groups = [
       {
-        name                             = "gitlab-lb-http-target"
+        name                             = "gitlab-nlb-http-target"
+        target_type                      = "alb"
+        port                             = 80
+        protocol                         = "TCP"
+        deregistration_delay             = 300
+        health_check_healthy_threshold   = 3
+        health_check_unhealthy_threshold = 3
+        health_check_interval            = 60
+        health_check_timeout             = 30
+        health_check_protocol            = "HTTP"
+        health_check_path                = "/-/readiness"
+        health_check_matcher             = "200"
+        # stickiness_type                  = "source_ip"
+        # cookie_duration                  = 86400 # 1 day in seconds
+      },
+      {
+        name                             = "gitlab-nlb-https-target"
+        target_type                      = "alb"
+        port                             = 443
+        protocol                         = "TCP"
+        deregistration_delay             = 300
+        health_check_healthy_threshold   = 3
+        health_check_unhealthy_threshold = 3
+        health_check_interval            = 60
+        health_check_timeout             = 30
+        health_check_protocol            = "HTTP"
+        health_check_path                = "/-/readiness"
+        health_check_matcher             = "200"
+        # stickiness_type                  = "source_ip"
+        # cookie_duration                  = 86400 # 1 day in seconds
+      },
+      {
+        name                 = "gitlab-nlb-ssh-target"
+        target_type          = "instance"
+        port                 = 22
+        protocol             = "TCP"
+        deregistration_delay = 300
+        stickiness_type      = "source_ip"
+        cookie_duration      = 86400 # 1 day in seconds
+      }
+    ]
+
+    listeners = [
+      {
+        port              = 80
+        protocol          = "TCP"
+        default_action    = "forward"
+        target_group_name = "gitlab-nlb-http-target"
+      },
+      {
+        port              = 443
+        protocol          = "TCP"
+        default_action    = "forward"
+        ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+        target_group_name = "gitlab-nlb-https-target"
+      },
+      {
+        port              = 22
+        protocol          = "TCP"
+        default_action    = "forward"
+        target_group_name = "gitlab-nlb-ssh-target"
+      }
+    ]
+
+    tags = {
+      "Environment" = "dev"
+      "Project"     = "gitlab"
+      "ManagedBy"   = "terraform"
+    }
+  },
+  {
+    lb_name                          = "gitlab-alb"
+    lb_type                          = "application"
+    lb_internal                      = true
+    domain_name                      = "lerkasan.net"
+    subdomains                       = ["gitlab", "registry"]
+    vpc_cidr                         = "10.0.0.0/16"
+    subnets                          = ["10.0.1.0/24", "10.0.3.0/24"]
+    add_security_rules_for_appserver = true
+    lb_access_logs_bucket_name       = "lerkasan-gitlab-alb-access-logs"
+
+    target_groups = [
+      {
+        name                             = "gitlab-alb-http-target"
+        target_type                      = "instance"
         port                             = 80
         protocol                         = "HTTP"
         deregistration_delay             = 300
@@ -87,6 +189,7 @@ load_balancers = [
         health_check_unhealthy_threshold = 3
         health_check_interval            = 60
         health_check_timeout             = 30
+        health_check_protocol            = "HTTP"
         health_check_path                = "/-/readiness"
         health_check_matcher             = "200"
         stickiness_type                  = "lb_cookie"
@@ -108,9 +211,12 @@ load_balancers = [
         protocol          = "HTTPS"
         default_action    = "forward"
         ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-        target_group_name = "gitlab-lb-http-target"
+        target_group_name = "gitlab-alb-http-target"
       }
     ]
+
+    attach_to_target_group = true # Whether to attach the ALB to a target group of NLB
+    target_group_names     = ["gitlab-nlb-http-target", "gitlab-nlb-https-target"]
 
     tags = {
       "Environment" = "dev"
@@ -226,6 +332,7 @@ ec2_appservers = [
     ami_virtualization                   = "hvm"
     ami_architectures                    = { "amd64" = "x86_64" }
     ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
+    
     iam_policy_statements = [
       {
         sid    = "EC2AccessS3Objects"
@@ -298,7 +405,7 @@ ec2_appservers = [
       external_postgres_enabled     = true
       external_redis_enabled        = true
       registry_enabled              = true
-      registry_s3_storage_enabled   = true      
+      registry_s3_storage_enabled   = true
       registry_s3_bucket            = "lerkasan-gitlab-registry"
       db_adapter                    = "postgresql"
       db_name                       = "gitlab"
@@ -348,12 +455,12 @@ ec2_runners = [
     ]
 
     userdata_config = {
-      install_gitlab                = false
-      install_gitlab_runner         = true
-      gitlab_runner_version         = "17.11.3-1"
-      docker_version                = "5:28.3.0-1~ubuntu.22.04~jammy"
-      docker_image                  = "docker:28.3.0-dind-rootless"
-      domain_name                   = "lerkasan.net"
+      install_gitlab        = false
+      install_gitlab_runner = true
+      gitlab_runner_version = "17.11.3-1"
+      docker_version        = "5:28.3.0-1~ubuntu.22.04~jammy"
+      docker_image          = "docker:28.3.0-dind-rootless"
+      domain_name           = "lerkasan.net"
     }
 
     tags = {

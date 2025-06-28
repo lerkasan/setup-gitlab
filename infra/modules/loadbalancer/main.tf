@@ -4,7 +4,7 @@ resource "aws_lb" "this" {
   internal                         = var.lb_internal
   load_balancer_type               = var.lb_type
   security_groups                  = [aws_security_group.this.id]
-  subnets                          = var.public_subnet_ids
+  subnets                          = var.subnet_ids
   drop_invalid_header_fields       = true
   enable_cross_zone_load_balancing = true # For application load balancer this feature is always enabled (true) and cannot be disabled
 
@@ -28,6 +28,7 @@ resource "aws_lb_target_group" "this" {
   for_each = var.target_groups != null ? { for tg in var.target_groups : tg.name => tg } : {}
 
   name                 = each.value.name
+  target_type          = each.value.target_type
   port                 = each.value.port
   protocol             = each.value.protocol
   vpc_id               = var.vpc_id
@@ -39,14 +40,18 @@ resource "aws_lb_target_group" "this" {
     interval            = each.value.health_check_interval
     matcher             = each.value.health_check_matcher # "200"
     path                = each.value.health_check_path
-    protocol            = each.value.protocol
+    protocol            = each.value.health_check_protocol
     timeout             = each.value.health_check_timeout
     unhealthy_threshold = each.value.health_check_unhealthy_threshold
   }
 
-  stickiness {
-    type            = each.value.stickiness_type
-    cookie_duration = each.value.cookie_duration
+  dynamic "stickiness" {
+    for_each = each.value.stickiness_type == null ? [] : [1]
+
+    content {
+      type            = each.value.stickiness_type
+      cookie_duration = each.value.cookie_duration
+    }
   }
 
   tags = merge(var.tags, {
@@ -106,4 +111,11 @@ resource "aws_s3_bucket_policy" "allow_loadbalancer_to_write_logs" {
 
   bucket = data.aws_s3_bucket.this.id
   policy = var.lb_type == "application" ? data.aws_iam_policy_document.allow_alb_logging.json : var.lb_type == "network" ? data.aws_iam_policy_document.allow_nlb_logging.json : null
+}
+
+resource "aws_lb_target_group_attachment" "this" {
+  for_each = var.attach_to_target_group ? var.target_group_names : []
+
+  target_group_arn = data.aws_lb_target_group.this[each.value].arn
+  target_id        = aws_lb.this.arn
 }
