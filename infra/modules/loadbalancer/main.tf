@@ -112,10 +112,3 @@ resource "aws_s3_bucket_policy" "allow_loadbalancer_to_write_logs" {
   bucket = data.aws_s3_bucket.this.id
   policy = var.lb_type == "application" ? data.aws_iam_policy_document.allow_alb_logging.json : var.lb_type == "network" ? data.aws_iam_policy_document.allow_nlb_logging.json : null
 }
-
-resource "aws_lb_target_group_attachment" "this" {
-  for_each = var.attach_to_target_group ? var.target_group_names : []
-
-  target_group_arn = data.aws_lb_target_group.this[each.value].arn
-  target_id        = aws_lb.this.arn
-}

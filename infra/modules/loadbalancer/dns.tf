@@ -10,6 +10,15 @@ resource "aws_route53_record" "this" {
     zone_id                = aws_lb.this.zone_id
     evaluate_target_health = true
   }
+
+  lifecycle {
+    ignore_changes = [
+      zone_id,
+      multivalue_answer_routing_policy,
+      records,
+      ttl
+    ]
+  }
 }
 
 
@@ -24,6 +33,15 @@ resource "aws_route53_record" "subdomain" {
     name                   = aws_lb.this.dns_name
     zone_id                = aws_lb.this.zone_id
     evaluate_target_health = false
+  }
+
+  lifecycle {
+    ignore_changes = [
+      zone_id,
+      multivalue_answer_routing_policy,
+      records,
+      ttl
+    ]
   }
 }
 
@@ -53,6 +71,13 @@ resource "aws_route53_record" "gitlab_subdomain_validation" {
   ttl             = 60
   type            = each.value.type
   zone_id         = data.aws_route53_zone.this.zone_id
+
+  lifecycle {
+    ignore_changes = [
+      zone_id,
+      multivalue_answer_routing_policy
+    ]
+  }
 }
 
 resource "aws_route53_record" "registry_subdomain_validation" {
@@ -73,8 +98,14 @@ resource "aws_route53_record" "registry_subdomain_validation" {
   ttl             = 60
   type            = each.value.type
   zone_id         = data.aws_route53_zone.this.zone_id
-}
 
+  lifecycle {
+    ignore_changes = [
+      zone_id,
+      multivalue_answer_routing_policy
+    ]
+  }
+}
 
 resource "aws_lb_listener_certificate" "subdomain" {
   for_each = var.lb_internal ? var.subdomains : []

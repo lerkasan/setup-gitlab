@@ -25,7 +25,7 @@ variable "admin_name" {
 variable "admin_username" {
   description = "Username for the GitLab admin user"
   type        = string
-  sensitive = true
+  sensitive   = true
 }
 
 variable "admin_password" {

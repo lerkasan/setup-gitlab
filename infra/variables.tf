@@ -73,6 +73,7 @@ variable "ec2_appservers" {
     delete_on_termination       = optional(bool, true)
     private_ssh_key_name        = string
     admin_public_ssh_key_names  = optional(list(string), [])
+    ami_id                      = optional(string, null)
     os                          = string
     os_product                  = optional(string, "server")
     os_architecture             = optional(string, "amd64")
@@ -99,10 +100,11 @@ variable "ec2_appservers" {
       actions   = list(string)
       resources = list(string)
       condition = optional(map(string))
-      # principals  = optional(map(string))
     })))
 
+    user_data = optional(string, null)
     userdata_config = optional(object({
+      vpc_cidr = optional(string, "10.0.0.0/16")
       # GitLab EE parameters    
       domain_name                   = optional(string, "localhost")
       install_gitlab                = optional(bool, false)
@@ -113,6 +115,8 @@ variable "ec2_appservers" {
       registry_enabled              = optional(bool, false)
       registry_s3_storage_enabled   = optional(bool, false)
       registry_s3_bucket            = optional(string, null)
+      obj_store_s3_enabled          = optional(bool, false)
+      obj_store_s3_bucket_prefix    = optional(string, "")
       db_adapter                    = optional(string, null)
       db_host                       = optional(string, null)
       db_port                       = optional(number, null)
@@ -151,6 +155,8 @@ variable "ec2_bastions" {
     admin_public_ssh_key_names           = optional(list(string), [])
     enable_ec2_instance_connect_endpoint = optional(bool, false)
     additional_security_group_ids        = optional(set(string), [])
+    user_data                            = optional(string, null)
+    ami_id                               = optional(string, null)
     os                                   = string
     os_product                           = optional(string, "server")
     os_architecture                      = optional(string, "amd64")
@@ -232,8 +238,7 @@ variable "load_balancers" {
       certificate_arn      = optional(string, null)
     }))
 
-    attach_to_target_group = optional(bool, false)     # Whether to attach the ALB to a target group of NLB
-    target_group_names     = optional(set(string), []) # Names of the target group to attach the ALB to
+    member_of_target_groups = optional(set(string), []) # Names of the target group to attach the ALB to
 
     tags = optional(map(string), {})
   }))
@@ -251,6 +256,7 @@ variable "s3_buckets" {
     name                = string
     region              = optional(string)
     enable_encryption   = optional(bool, true)
+    bucket_key_enabled  = optional(bool, true)
     enable_logging      = optional(bool, true)
     logging_bucket_name = optional(string, null)
     versioning_status   = optional(string, "Enabled")
@@ -365,6 +371,7 @@ variable "ec2_runners" {
     delete_on_termination       = optional(bool, true)
     private_ssh_key_name        = string
     admin_public_ssh_key_names  = optional(list(string), [])
+    ami_id                      = optional(string, null)
     os                          = string
     os_product                  = optional(string, "server")
     os_architecture             = optional(string, "amd64")
@@ -388,9 +395,9 @@ variable "ec2_runners" {
       actions   = list(string)
       resources = list(string)
       condition = optional(map(string))
-      # principals  = optional(map(string))
     })))
 
+    user_data = optional(string, null)
     userdata_config = optional(object({
       domain_name = optional(string, "localhost")
       # GitLab Runner parameters
@@ -398,6 +405,11 @@ variable "ec2_runners" {
       gitlab_runner_version = optional(string, "17.11.4-1")
       docker_version        = optional(string, "5:28.3.0-1~ubuntu.22.04~jammy")
       docker_image          = optional(string, "docker:28.3.0-dind-rootless")
+      concurrent            = optional(number, 1)
+      check_interval        = optional(number, 0)
+      connection_max_age    = optional(string, "15m0s")
+      shutdown_timeout      = optional(number, 0)
+      session_timeout       = optional(number, 1800)
     }))
 
     tags = map(string)
@@ -409,4 +421,10 @@ variable "ec2_runners" {
   }
 
   default = []
+}
+
+variable "admin_public_ssh_key_names" {
+  description = "List of names of the SSM parameters with admin public ssh keys"
+  type        = list(string)
+  default     = []
 }

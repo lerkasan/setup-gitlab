@@ -34,12 +34,12 @@ ec2_instance_connect_endpoints = [
 ]
 
 s3_buckets = [{
-  name              = "lerkasan-gitlab-alb-access-logs"
-  enable_encryption = true
-  enable_key_rotation = true
-  enable_logging    = false
-  object_ownership  = "BucketOwnerEnforced"
-  versioning_status = "Enabled"
+  name               = "lerkasan-gitlab-alb-access-logs"
+  enable_encryption  = true
+  bucket_key_enabled = true
+  enable_logging     = false
+  object_ownership   = "BucketOwnerEnforced"
+  versioning_status  = "Enabled"
   lifecycle_rule = {
     status                             = "Enabled"
     prefix                             = ""
@@ -49,12 +49,12 @@ s3_buckets = [{
   }
   },
   {
-    name              = "lerkasan-gitlab-nlb-access-logs"
-    enable_encryption = true
-    enable_key_rotation = true
-    enable_logging    = false
-    object_ownership  = "BucketOwnerEnforced"
-    versioning_status = "Enabled"
+    name               = "lerkasan-gitlab-nlb-access-logs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
     lifecycle_rule = {
       status                             = "Enabled"
       prefix                             = ""
@@ -64,12 +64,147 @@ s3_buckets = [{
     }
   },
   {
-    name                = "lerkasan-gitlab-registry"
-    enable_encryption   = true
-    enable_key_rotation = true
-    enable_logging      = false
-    object_ownership    = "BucketOwnerEnforced"
-    versioning_status   = "Enabled"
+    name               = "lerkasan-gitlab-registry"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-artifacts"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-lfs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-uploads"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-packages"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-mr-diffs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-terraform-state"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-dependency-proxy"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-ci-secure-files"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-pages"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
     lifecycle_rule = {
       status                             = "Enabled"
       prefix                             = ""
@@ -80,8 +215,12 @@ s3_buckets = [{
   }
 ]
 
-# https://stackoverflow.com/questions/66582892/use-aws-loadbalancer-for-https-and-ssh
+# https://stackoverflow.com/questions/66582892/use-aws-loadbalancer-for-https-and-ssh 
 # https://aws.amazon.com/de/blogs/networking-and-content-delivery/application-load-balancer-type-target-group-for-network-load-balancer/
+# Note to future me: I really like Application LBs for being able to use redirects (in listeners) from HTTP to HTTPS, and from lerkasan.net to gitlab.lerkasan.net, as well as health checks with paths and matchers. 
+# Though, it looks like Network LBs also support health checks, but they don't support redirects.
+# However, ALBs support only HTTP and HTTPS protocols, so I needed a Network LB to support TCP protocol for GitLab SSH access. On the other hand, NLBs don't support redirects.
+# Therefore, in this configuration I used a NLB as an internet-facing LB and an ALB as an internal LB behind a NLB.
 load_balancers = [
   {
     lb_name                          = "gitlab-nlb"
@@ -109,8 +248,6 @@ load_balancers = [
         health_check_protocol            = "HTTP"
         health_check_path                = "/-/readiness"
         health_check_matcher             = "200"
-        # stickiness_type                  = "source_ip"
-        # cookie_duration                  = 86400 # 1 day in seconds
       },
       {
         name                             = "gitlab-nlb-https-target"
@@ -125,8 +262,6 @@ load_balancers = [
         health_check_protocol            = "HTTP"
         health_check_path                = "/-/readiness"
         health_check_matcher             = "200"
-        # stickiness_type                  = "source_ip"
-        # cookie_duration                  = 86400 # 1 day in seconds
       },
       {
         name                 = "gitlab-nlb-ssh-target"
@@ -215,8 +350,8 @@ load_balancers = [
       }
     ]
 
-    attach_to_target_group = true # Whether to attach the ALB to a target group of NLB
-    target_group_names     = ["gitlab-nlb-http-target", "gitlab-nlb-https-target"]
+    # Whether to attach the ALB to a target group of NLB
+    member_of_target_groups = ["gitlab-nlb-http-target", "gitlab-nlb-https-target"]
 
     tags = {
       "Environment" = "dev"
@@ -324,6 +459,11 @@ ec2_appservers = [
     bastion_name          = "GitLabBastion"
     # admin_public_ssh_key_names = ["ssh_public_key"] # Uncomment this line if you want to add additional public SSH keys for the appserver host
     enable_ec2_instance_connect_endpoint = true
+
+    # Uncomment if use of official GitLab AMI images is preferred
+    # ami_id = "ami-0b77e972d1515869e" # Official AMI for GitLab EE 17.11.4  (Owner 782774275127)
+
+# If using ami_id to select AMI image, then the following AMI filtering arguments are not needed:
     os                                   = "ubuntu"
     os_product                           = "server"
     os_architecture                      = "amd64"
@@ -332,7 +472,7 @@ ec2_appservers = [
     ami_virtualization                   = "hvm"
     ami_architectures                    = { "amd64" = "x86_64" }
     ami_owner_ids                        = { "ubuntu" = "099720109477" } # Canonical's official Ubuntu AMIs
-    
+
     iam_policy_statements = [
       {
         sid    = "EC2AccessS3Objects"
@@ -399,6 +539,7 @@ ec2_appservers = [
 
     userdata_config = {
       install_gitlab                = true
+      vpc_cidr                      = "10.0.0.0/16"
       gitlab_version                = "17.11.4-ee.0"
       domain_name                   = "lerkasan.net"
       external_loadbalancer_enabled = true
@@ -407,6 +548,8 @@ ec2_appservers = [
       registry_enabled              = true
       registry_s3_storage_enabled   = true
       registry_s3_bucket            = "lerkasan-gitlab-registry"
+      obj_store_s3_enabled          = true
+      obj_store_s3_bucket_prefix    = "lerkasan-gitlab-"
       db_adapter                    = "postgresql"
       db_name                       = "gitlab"
       db_port                       = 5432
@@ -421,6 +564,7 @@ ec2_appservers = [
     }
   }
 ]
+
 
 ec2_runners = [
   {
@@ -455,12 +599,16 @@ ec2_runners = [
     ]
 
     userdata_config = {
-      install_gitlab        = false
       install_gitlab_runner = true
       gitlab_runner_version = "17.11.3-1"
       docker_version        = "5:28.3.0-1~ubuntu.22.04~jammy"
       docker_image          = "docker:28.3.0-dind-rootless"
       domain_name           = "lerkasan.net"
+      concurrent            = 12
+      check_interval        = 0
+      connection_max_age    = "15m0s"
+      shutdown_timeout      = 0
+      session_timeout       = 1800
     }
 
     tags = {

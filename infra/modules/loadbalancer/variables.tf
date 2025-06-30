@@ -251,13 +251,7 @@ variable "target_groups" {
   }
 }
 
-variable "attach_to_target_group" {
-  description = "Whether to attach the ALB to a target group"
-  type        = bool
-  default     = false
-}
-
-variable "target_group_names" {
+variable "member_of_target_groups" {
   description = "Names of the target group to attach the ALB to"
   type        = set(string)
   default     = []

@@ -42,15 +42,17 @@ module "bastion" {
   admin_public_ips                       = var.admin_public_ips
   enable_ec2_instance_connect_endpoint   = each.value.enable_ec2_instance_connect_endpoint
   ec2_connect_endpoint_security_group_id = module.ec2_instance_connect_endpoint[each.value.vpc_cidr].security_group_id
-  os                                     = each.value.os
-  os_product                             = each.value.os_product
-  os_architecture                        = each.value.os_architecture
-  os_version                             = each.value.os_version
-  os_releases                            = each.value.os_releases
-  ami_virtualization                     = each.value.ami_virtualization
-  ami_architectures                      = each.value.ami_architectures
-  ami_owner_ids                          = each.value.ami_owner_ids
-  tags                                   = each.value.tags
+
+  ami_id             = each.value.ami_id
+  os                 = each.value.os
+  os_product         = each.value.os_product
+  os_architecture    = each.value.os_architecture
+  os_version         = each.value.os_version
+  os_releases        = each.value.os_releases
+  ami_virtualization = each.value.ami_virtualization
+  ami_architectures  = each.value.ami_architectures
+  ami_owner_ids      = each.value.ami_owner_ids
+  tags               = each.value.tags
 }
 
 module "appserver" {
@@ -69,6 +71,7 @@ module "appserver" {
   private_ssh_key_name          = each.value.private_ssh_key_name
   admin_public_ssh_key_names    = each.value.admin_public_ssh_key_names
 
+  ami_id                = each.value.ami_id
   os                    = each.value.os
   os_product            = each.value.os_product
   os_architecture       = each.value.os_architecture
@@ -86,7 +89,9 @@ module "appserver" {
   ec2_connect_endpoint_security_group_id = module.ec2_instance_connect_endpoint[each.value.vpc_cidr].security_group_id
 
   additional_policy_arns = [module.rds["gitlab"].policy_arn_for_access_to_ssm_params_and_secrets]
-  userdata_config        = each.value.userdata_config
+
+  user_data       = data.cloudinit_config.user_data_gitlab[each.key].rendered
+  userdata_config = each.value.userdata_config
 
   attach_to_target_group = true
   target_group_arns = {
@@ -111,6 +116,7 @@ module "s3_bucket" {
 
   bucket_name         = each.value.name
   enable_encryption   = each.value.enable_encryption
+  bucket_key_enabled  = each.value.bucket_key_enabled
   enable_logging      = each.value.enable_logging
   logging_bucket_name = each.value.logging_bucket_name
   versioning_status   = each.value.versioning_status
@@ -139,8 +145,7 @@ module "loadbalancer" {
   add_security_rules_for_appserver = true
   appserver_sg_id                  = aws_security_group.additional_sg_for_appserver["GitLabServer"].id
 
-  attach_to_target_group = each.value.attach_to_target_group
-  target_group_names     = each.value.target_group_names
+  member_of_target_groups = each.value.member_of_target_groups
 
   tags = each.value.tags
 
@@ -219,6 +224,7 @@ module "runner" {
   private_ssh_key_name        = each.value.private_ssh_key_name
   admin_public_ssh_key_names  = each.value.admin_public_ssh_key_names
 
+  ami_id                = each.value.ami_id
   os                    = each.value.os
   os_product            = each.value.os_product
   os_architecture       = each.value.os_architecture
@@ -235,6 +241,7 @@ module "runner" {
   enable_ec2_instance_connect_endpoint   = each.value.enable_ec2_instance_connect_endpoint
   ec2_connect_endpoint_security_group_id = module.ec2_instance_connect_endpoint[each.value.vpc_cidr].security_group_id
 
+  user_data       = data.cloudinit_config.user_data_gitlab_runner[each.key].rendered
   userdata_config = each.value.userdata_config
 
   attach_to_target_group = false
@@ -246,3 +253,15 @@ module "runner" {
     module.appserver
   ]
 }
+# Attach the ALB to the NLB target group
+resource "aws_lb_target_group_attachment" "this" {
+  for_each = module.loadbalancer["gitlab-alb"].member_of_target_groups
+
+  target_group_arn = module.loadbalancer["gitlab-nlb"].target_groups[each.value].arn
+  target_id        = module.loadbalancer["gitlab-alb"].arn
+
+  depends_on = [
+    module.loadbalancer["gitlab-nlb"],
+    module.loadbalancer["gitlab-alb"]
+  ]
+} 

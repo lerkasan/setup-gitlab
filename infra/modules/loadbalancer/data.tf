@@ -96,9 +96,3 @@ data "aws_iam_policy_document" "allow_nlb_logging" {
     }
   }
 }
-
-data "aws_lb_target_group" "this" {
-  for_each = var.attach_to_target_group ? var.target_group_names : []
-
-  name = each.value
-}

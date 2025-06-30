@@ -51,7 +51,7 @@ variable "private_ssh_key_name" {
 variable "admin_public_ssh_key_names" {
   description = "List of names of the SSM parameters with admin public ssh keys"
   type        = list(string)
-  default     = ["ssh_public_key"]
+  default     = []
 }
 
 variable "admin_public_ips" {
@@ -132,6 +132,11 @@ variable "os_releases" {
 
 # ---------------- AMI filters ----------------------
 
+variable "ami_id" {
+  description = "AMI ID to use for the EC2 instance"
+  type        = string
+}
+
 variable "ami_virtualization" {
   description = "AMI virtualization type"
   type        = string
@@ -186,6 +191,13 @@ variable "target_group_arns" {
   default     = {}
 }
 
+variable "user_data" {
+  description = "User data for the EC2 instance"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
 variable "userdata_config" {
   description = "Application configuration for the EC2 instance"
   type = object({
@@ -199,14 +211,15 @@ variable "userdata_config" {
     registry_enabled              = optional(bool, false)
     registry_s3_storage_enabled   = optional(bool, false)
     registry_s3_bucket            = optional(string, null)
-    # registry_s3_vpc_regionendpoint = optional(string, null)
-    db_adapter  = optional(string, null)
-    db_host     = optional(string, null)
-    db_port     = optional(number, null)
-    db_name     = optional(string, null)
-    db_username = optional(string, null)
-    redis_host  = optional(string, null)
-    redis_port  = optional(number, null)
+    obj_store_s3_enabled       = optional(bool, false)
+    obj_store_s3_bucket_prefix = optional(string, "")
+    db_adapter                 = optional(string, null)
+    db_host                    = optional(string, null)
+    db_port                    = optional(number, null)
+    db_name                    = optional(string, null)
+    db_username                = optional(string, null)
+    redis_host                 = optional(string, null)
+    redis_port                 = optional(number, null)
     # GitLab Runner parameters
     install_gitlab_runner = optional(bool, false)
     gitlab_runner_version = optional(string, "17.11.4-1")

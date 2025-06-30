@@ -1,0 +1,122 @@
+%{~ if domain_name != null }
+external_url "https://gitlab.${domain_name}"
+
+%{~ if registry_enabled }
+registry_external_url "https://registry.${domain_name}"
+gitlab_rails['registry_host'] = "registry.${domain_name}"
+%{~ endif }
+%{~ endif }
+
+%{~ if external_loadbalancer_enabled }
+letsencrypt['enable'] = false
+nginx['enable'] = true
+nginx['redirect_http_to_https'] = false
+nginx['listen_port'] = 80
+nginx['listen_https'] = false
+registry_nginx['enable'] = true
+registry_nginx['listen_https'] = false
+registry_nginx['listen_port'] = 80
+%{~ endif ~}
+
+%{~ if registry_enabled }
+registry['enable'] = true
+registry['registry_http_addr'] = "localhost:5000"
+registry['log_directory'] = "/var/log/gitlab/registry"
+registry['env_directory'] = "/opt/gitlab/etc/registry/env"
+
+%{~ if registry_s3_storage_enabled }
+registry['storage'] = {
+  's3_v2' => {
+    'bucket' => '${registry_s3_bucket}',
+    'region' => '${region}',
+    'maxrequestspersecond' => 100,
+    'encrypt' => true,
+    'pathstyle' => false
+  }
+}
+%{~ endif }
+%{~ endif }
+
+%{~ if vpc_cidr != null }
+gitlab_rails['monitoring_whitelist'] = ['127.0.0.0/8', '${vpc_cidr}']
+%{~ endif }
+
+%{~ if external_postgres_enabled }
+
+postgresql['enable'] = false
+gitlab_rails['db_encoding'] = "unicode"
+
+%{~ if db_adapter != null }
+gitlab_rails['db_adapter'] = "${db_adapter}"
+%{~ endif }
+
+%{~ if db_name != null }
+gitlab_rails['db_database'] = "${db_name}"
+%{~ else }
+gitlab_rails['db_database'] = "$DB_NAME"
+%{~ endif }
+
+%{~ if db_username != null }
+gitlab_rails['db_username'] = "${db_username}"
+%{~ else }
+gitlab_rails['db_username'] = "$DB_USERNAME"
+%{~ endif }
+
+gitlab_rails['db_password'] = "$DB_PASSWORD"
+
+%{~ if db_host != null }
+gitlab_rails['db_host'] = "${db_host}"
+%{~ else }
+gitlab_rails['db_host'] = "$DB_HOST"
+%{~ endif }
+
+%{~ if db_port != null }
+gitlab_rails['db_port'] = ${db_port}
+%{~ else }
+gitlab_rails['db_port'] = "$DB_PORT"
+%{~ endif }
+
+%{~ endif }
+
+
+%{~ if external_redis_enabled }
+
+redis['enable'] = false
+
+%{~ if redis_host != null }
+gitlab_rails['redis_host'] = "${redis_host}"
+%{~ else }
+gitlab_rails['redis_host'] = "$REDIS_HOST"
+%{~ endif }
+
+%{~ if redis_port != null }
+gitlab_rails['redis_port'] = ${redis_port}
+%{~ else }
+gitlab_rails['redis_port'] = "$REDIS_PORT"
+%{~ endif }
+
+%{~ endif }
+
+%{~ if obj_store_s3_enabled }
+gitlab_rails['object_store']['enabled'] = true
+gitlab_rails['object_store']['proxy_download'] = false
+gitlab_rails['object_store']['connection'] = {
+  'provider' => 'AWS',
+  'region' => '${region}',
+  'use_iam_profile' => true
+}
+
+gitlab_rails['object_store']['storage_options'] = {
+  'server_side_encryption' => 'AES256'
+}
+
+gitlab_rails['object_store']['objects']['artifacts']['bucket'] = '${obj_store_s3_bucket_prefix}artifacts'
+gitlab_rails['object_store']['objects']['external_diffs']['bucket'] = '${obj_store_s3_bucket_prefix}mr-diffs'
+gitlab_rails['object_store']['objects']['lfs']['bucket'] = '${obj_store_s3_bucket_prefix}lfs'
+gitlab_rails['object_store']['objects']['uploads']['bucket'] = '${obj_store_s3_bucket_prefix}uploads'
+gitlab_rails['object_store']['objects']['packages']['bucket'] = '${obj_store_s3_bucket_prefix}packages'
+gitlab_rails['object_store']['objects']['terraform_state']['bucket'] = '${obj_store_s3_bucket_prefix}terraform-state'
+gitlab_rails['object_store']['objects']['dependency_proxy']['bucket'] = '${obj_store_s3_bucket_prefix}dependency-proxy'
+gitlab_rails['object_store']['objects']['ci_secure_files']['bucket'] = '${obj_store_s3_bucket_prefix}ci-secure-files'
+gitlab_rails['object_store']['objects']['pages']['bucket'] = '${obj_store_s3_bucket_prefix}pages'
+%{~ endif }

@@ -3,11 +3,16 @@ set -eou pipefail
 
 curl "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" -o /tmp/add_gitlab_runner_repo.sh
 chmod +x /tmp/add_gitlab_runner_repo.sh
-sudo /tmp/add_gitlab_runner_repo.sh
-sudo apt-get install -y gitlab-runner=${gitlab_runner_version} gitlab-runner-helper-images=${gitlab_runner_version}
-sudo apt-mark hold gitlab-runner gitlab-runner-helper-images
+/tmp/add_gitlab_runner_repo.sh
 
-PERSONAL_TOKEN=$(aws ssm get-parameter --region "${region}" --name "gitlab_personal_token" --with-decryption --query Parameter.Value --output text)
+apt-get install -y git gitlab-runner=${gitlab_runner_version} gitlab-runner-helper-images=${gitlab_runner_version}
+apt-mark hold gitlab-runner gitlab-runner-helper-images
+
+PERSONAL_TOKEN=$(aws ssm get-parameter --region "${region}" \
+                                       --name "gitlab_personal_token" \
+                                       --with-decryption \
+                                       --query Parameter.Value \
+                                       --output text)
 
 RUNNER_TOKEN=$(curl --silent --request POST \
                              --url "https://gitlab.${domain_name}/api/v4/user/runners" \
@@ -29,7 +34,7 @@ gitlab-runner register --non-interactive \
                        --docker-privileged \
                        --docker-volumes "/certs/client"
 
-sudo usermod -aG docker gitlab-runner
+usermod -aG docker gitlab-runner
 
 systemctl restart gitlab-runner
 

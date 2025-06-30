@@ -1,10 +1,8 @@
 resource "gitlab_user" "admin_account" {
-  name             = var.admin_name
-  email            = var.admin_email
-  username         = var.admin_username
-  password         = var.admin_password
-#   force_random_password = true
-#   reset_password   = true
+  name     = var.admin_name
+  email    = var.admin_email
+  username = var.admin_username
+  password = var.admin_password
 
   is_admin         = true
   can_create_group = true
@@ -13,8 +11,8 @@ resource "gitlab_user" "admin_account" {
 }
 
 resource "gitlab_project" "first" {
-  name = "first"
-  description = "My internal test project in GitLab EE"
+  name             = "first"
+  description      = "My internal test project in GitLab EE"
   visibility_level = "internal"
 
   tags = [

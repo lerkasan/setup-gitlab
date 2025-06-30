@@ -14,27 +14,3 @@ ssh_authorized_keys:
   - ${key}
   %{ endfor ~}
 %{ endif }
-
-packages:
-  - ca-certificates
-  - curl
-  - awscli
-  - git
-  - jq
-
-%{~ if install_gitlab ~}
-runcmd:
-  - curl "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh" -o /tmp/add_gitlab_repo.sh
-  - chmod +x /tmp/add_gitlab_repo.sh
-  - sudo /tmp/add_gitlab_repo.sh
-  - sudo GITLAB_ROOT_PASSWORD=$(aws ssm get-parameter --region "${region}" --name "gitlab_root_password" --with-decryption --query Parameter.Value --output text) apt-get install -y gitlab-ee=${gitlab_version}
-  - sudo apt-mark hold gitlab-ee
-  - sudo /tmp/populate_gitlab_config.sh
-  - sudo gitlab-ctl reconfigure
-%{~ else ~}
-%{~ if install_gitlab_runner ~}
-runcmd:
-  - sudo /tmp/install_docker.sh
-  - sudo /tmp/add_gitlab_runner.sh
-%{~ endif ~}
-%{~ endif ~}

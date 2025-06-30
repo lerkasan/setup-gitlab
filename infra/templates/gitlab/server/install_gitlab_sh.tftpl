@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -eou pipefail 
+  
+curl "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh" -o /tmp/add_gitlab_repo.sh
+chmod +x /tmp/add_gitlab_repo.sh
+/tmp/add_gitlab_repo.sh
+
+export GITLAB_ROOT_PASSWORD=$(aws ssm get-parameter --region "${region}" \
+                                                    --name "gitlab_root_password" \
+                                                    --with-decryption \
+                                                    --query Parameter.Value \
+                                                    --output text)
+
+export DB_HOST=$(aws ssm get-parameter --region "${region}" \
+                                       --name "gitlab_db_host" \
+                                       --with-decryption \
+                                       --query Parameter.Value \
+                                       --output text)
+
+export DB_MASTER_SECRET_ARN=$(aws ssm get-parameter --region "${region}" \
+                                                    --name "gitlab_db_master_secret_arn" \
+                                                    --with-decryption \
+                                                    --query Parameter.Value \
+                                                    --output text)
+
+export DB_USERNAME=$(aws secretsmanager get-secret-value --region "${region}" \
+                                                         --secret-id "$DB_MASTER_SECRET_ARN" | jq -r '.SecretString' | jq -r '.username')
+
+export DB_PASSWORD=$(aws secretsmanager get-secret-value --region "${region}" \
+                                                         --secret-id "$DB_MASTER_SECRET_ARN" | jq -r '.SecretString' | jq -r '.password')
+
+export REDIS_HOST=$(aws ssm get-parameter --region "${region}" \
+                                          --name "gitlab_cache_host" \
+                                          --with-decryption \
+                                          --query Parameter.Value \
+                                          --output text)
+
+echo "Populating GitLab configuration file from cloud-init"
+envsubst < /etc/gitlab/gitlab.rb.template > /etc/gitlab/gitlab.rb
+
+chmod 600 /etc/gitlab/gitlab.rb
+chown root:root /etc/gitlab/gitlab.rb
+
+apt-get install -y gitlab-ee=${gitlab_version}
+apt-mark hold gitlab-ee
+
+sudo gitlab-ctl reconfigure
+
+unset GITLAB_ROOT_PASSWORD
+unset DB_MASTER_SECRET_ARN
+unset DB_HOST
+unset DB_USERNAME
+unset DB_PASSWORD
+unset REDIS_HOST

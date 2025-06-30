@@ -45,87 +45,16 @@ data "aws_s3_bucket" "this" {
   bucket = var.userdata_config.registry_s3_bucket
 }
 
-# ------------------- User data for cloud-init --------------------------
-# The additional public ssh key will be added to ec2 instances using cloud-init
+# # ------------------- User data for cloud-init --------------------------
+# # The additional public ssh key will be added to ec2 instances using cloud-init
 data "cloudinit_config" "user_data" {
   gzip          = true
   base64_encode = true
 
-  dynamic "part" {
-    for_each = var.userdata_config != null ? [1] : []
-
-    content {
-      content_type = "text/cloud-config"
-      content = yamlencode({
-        "write_files" = [
-          {
-            "path"        = "/etc/gitlab/gitlab.rb.template"
-            "permissions" = "0600"
-            "owner"       = "root:root"
-            "content" = templatefile("${path.module}/templates/gitlab_rb.tftpl", {
-              vpc_cidr                      = data.aws_vpc.this.cidr_block,
-              region                        = data.aws_region.current.name,
-              domain_name                   = var.userdata_config.domain_name,
-              external_loadbalancer_enabled = var.userdata_config.external_loadbalancer_enabled,
-              external_postgres_enabled     = var.userdata_config.external_postgres_enabled,
-              external_redis_enabled        = var.userdata_config.external_redis_enabled,
-              registry_enabled              = var.userdata_config.registry_enabled,
-              registry_s3_storage_enabled   = var.userdata_config.registry_s3_storage_enabled,
-              registry_s3_bucket            = var.userdata_config.registry_s3_storage_enabled ? var.userdata_config.registry_s3_bucket : null,
-              # Currently in gitlab_rb.tftpl we do not use property 'regionendpoint' => '${s3_vpc_regionendpoint}' in registry configuration. 
-              # TODO: research which value should be used for regionendpoint property, if we have a VPC endpoint for S3 and proper routes
-              # s3_vpc_regionendpoint         = var.userdata_config.registry_s3_storage_enabled ? data.aws_vpc_endpoint.s3[0].arn : null,
-              db_adapter  = var.userdata_config.db_adapter,
-              db_host     = var.userdata_config.db_host,
-              db_port     = var.userdata_config.db_port,
-              db_name     = var.userdata_config.db_name,
-              db_username = var.userdata_config.db_username,
-              redis_host  = var.userdata_config.redis_host,
-              redis_port  = var.userdata_config.redis_port
-            })
-          },
-          {
-            "path"        = "/tmp/populate_gitlab_config.sh"
-            "permissions" = "0700"
-            "owner"       = "root:root"
-            "content" = templatefile("${path.module}/templates/populate_gitlab_config_sh.tftpl", {
-              region = data.aws_region.current.name
-            })
-          },
-          {
-            "path"        = "/tmp/install_docker.sh"
-            "permissions" = "0700"
-            "owner"       = "root:root"
-            "content" = templatefile("${path.module}/templates/install_docker_sh.tftpl", {
-              docker_version = var.userdata_config.docker_version
-            })
-          },
-          {
-            "path"        = "/tmp/add_gitlab_runner.sh"
-            "permissions" = "0700"
-            "owner"       = "root:root"
-            "content" = templatefile("${path.module}/templates/add_gitlab_runner_sh.tftpl", {
-              region                = data.aws_region.current.name,
-              domain_name           = var.userdata_config.domain_name,
-              gitlab_runner_version = var.userdata_config.gitlab_runner_version
-              docker_image          = var.userdata_config.docker_image,
-              domain_name           = var.userdata_config.domain_name
-            })
-          }
-        ]
-        }
-      )
-    }
-  }
-
   part {
     content_type = "text/cloud-config"
     content = templatefile("${path.module}/templates/userdata.tftpl", {
-      region                = data.aws_region.current.name,
-      install_gitlab        = var.userdata_config.install_gitlab,
-      install_gitlab_runner = var.userdata_config.install_gitlab_runner,
-      gitlab_version        = var.userdata_config.gitlab_version,
-      public_ssh_keys       = [for key in data.aws_ssm_parameter.admin_public_ssh_keys : key.value]
+      public_ssh_keys = [for key in data.aws_ssm_parameter.admin_public_ssh_keys : key.value]
     })
   }
 }
