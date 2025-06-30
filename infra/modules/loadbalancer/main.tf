@@ -1,5 +1,6 @@
 #tfsec:ignore:aws-elb-alb-not-public: This load balancer should be internet-facing
 resource "aws_lb" "this" {
+  # checkov:skip=CKV2_AWS_20: False positive. The listener to redirect HTTP to HTTPS is created in a separate resource.
   name                             = var.lb_name
   internal                         = var.lb_internal
   load_balancer_type               = var.lb_type
@@ -8,8 +9,8 @@ resource "aws_lb" "this" {
   drop_invalid_header_fields       = true
   enable_cross_zone_load_balancing = true # For application load balancer this feature is always enabled (true) and cannot be disabled
 
-  # checkov:skip=CKV_AWS_150: Currently deletion protection is disabled to allow for easier testing and development of IaC.
-  # enable_deletion_protection = true
+  # checkov:skip=CKV_AWS_150: Deletion protection can be disabled to allow for easier testing and development of IaC.
+  enable_deletion_protection = true
 
   access_logs {
     bucket  = var.lb_access_logs_bucket_name
@@ -19,7 +20,7 @@ resource "aws_lb" "this" {
 
   tags = var.tags
 
-  # Creation of a load balancer will fail if an S3 bucket for access logs is not created or permissions in an S3 bucket policy are not set
+  # Creation of a load balancer will fail if an S3 bucket for access logs is not created yet or permissions in an S3 bucket policy are not set
   depends_on = [aws_s3_bucket_policy.allow_loadbalancer_to_write_logs]
 }
 

@@ -19,10 +19,6 @@ data "aws_acm_certificate" "this" {
   most_recent = true
 }
 
-# Looks like if I use the same bucket for both ALB and NLB access logs, then the last policy will overwrite the first one. 
-# So I will need to create one combined policy for both ALB and NLB. Or use two different s3 buckets for ALB and NLB access logs.
-# Creating one combined policy for both ALB and NLB didn't help.
-# So I have to use two different s3 buckets for ALB and NLB access logs.
 data "aws_iam_policy_document" "allow_alb_logging" {
   statement {
     sid       = "AllowAppLoadBalancerWriteOnly"

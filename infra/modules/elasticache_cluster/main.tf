@@ -54,7 +54,9 @@ resource "aws_elasticache_parameter_group" "this" {
   })
 }
 
+#tfsec:ignore:aws-cloudwatch-log-group-customer-key
 resource "aws_cloudwatch_log_group" "slow_logs" {
+  # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
   name              = join("-", [var.cache_cluster_id, var.cache_log_group_name, "slow-logs"])
   retention_in_days = var.cache_log_retention_in_days
 
@@ -63,7 +65,9 @@ resource "aws_cloudwatch_log_group" "slow_logs" {
   })
 }
 
+#tfsec:ignore:aws-cloudwatch-log-group-customer-key
 resource "aws_cloudwatch_log_group" "engine_logs" {
+  # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
   name              = join("-", [var.cache_cluster_id, var.cache_log_group_name, "engine-logs"])
   retention_in_days = var.cache_log_retention_in_days
 

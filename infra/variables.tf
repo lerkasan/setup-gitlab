@@ -356,7 +356,6 @@ variable "cache_instances" {
   }
 
   default = []
-
 }
 
 variable "ec2_runners" {
@@ -421,10 +420,4 @@ variable "ec2_runners" {
   }
 
   default = []
-}
-
-variable "admin_public_ssh_key_names" {
-  description = "List of names of the SSM parameters with admin public ssh keys"
-  type        = list(string)
-  default     = []
 }

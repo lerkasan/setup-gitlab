@@ -253,6 +253,7 @@ module "runner" {
     module.appserver
   ]
 }
+
 # Attach the ALB to the NLB target group
 resource "aws_lb_target_group_attachment" "this" {
   for_each = module.loadbalancer["gitlab-alb"].member_of_target_groups

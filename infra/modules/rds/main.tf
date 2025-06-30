@@ -1,22 +1,29 @@
+#tfsec:ignore:AVD-AWS-0176 - RDS instance does not have IAM Authentication enable
+#tfsec:ignore:aws-rds-enable-performance-insights - RDS instance does not have performance insights enabled. It's not needed for a proof of concept project.
 resource "aws_db_instance" "primary" {
+  # checkov:skip=CKV_AWS_353: "Ensure that RDS instances have performance insights enabled". It's not needed for a proof of concept project.
   storage_type            = var.database_storage_type
   allocated_storage       = var.database_allocated_storage
   max_allocated_storage   = var.database_max_allocated_storage
   backup_retention_period = var.database_backup_retention_period
-  #   deletion_protection     = true
-  identifier     = var.rds_name
-  engine         = var.database_engine
-  engine_version = var.database_engine_version
-  instance_class = var.database_instance_class
-  port           = var.database_port
-  db_name        = var.database_name
-  username       = var.database_username
+
+  # Deletion protection might be disabled to allow for easier testing and development of IaC.
+  deletion_protection = true
+  identifier          = var.rds_name
+  engine              = var.database_engine
+  engine_version      = var.database_engine_version
+  instance_class      = var.database_instance_class
+  port                = var.database_port
+  db_name             = var.database_name
+  username            = var.database_username
 
   # https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html
   manage_master_user_password   = true
   master_user_secret_kms_key_id = aws_kms_key.sm_secret_encrypt_key.key_id
 
-  # multi_az                        = true      # creating multi-AZ RDS instance will take about 30 minutes instead of 10 minutes
+  # checkov:skip=CKV2_AWS_30: "Ensure Postgres RDS as aws_db_instance has Query Logging enabled". It's not needed for a proof of concept project.
+  # checkov:skip=CKV_AWS_157: Creating multi-AZ RDS instance will take about 30 minutes instead of 10 minutes for single-AZ RDS instance. It's pricey and not needed for a proof of concept project.
+  # multi_az                        = true   
   availability_zone               = local.availability_zones[0]
   db_subnet_group_name            = aws_db_subnet_group.this.name
   vpc_security_group_ids          = [aws_security_group.this.id]
@@ -26,7 +33,11 @@ resource "aws_db_instance" "primary" {
   auto_minor_version_upgrade      = true
   maintenance_window              = var.database_maintenance_window
   enabled_cloudwatch_logs_exports = ["postgresql"] # audit, error, general, slowquery - mysql; /    postgresql, upgrade - postgres
-  skip_final_snapshot             = true           # For testing purposes only
+  monitoring_interval             = 60
+
+  copy_tags_to_snapshot = true
+  # For testing purposes final snapshot might be skipped.
+  skip_final_snapshot = false
 
   tags = var.tags
 }
@@ -54,7 +65,8 @@ resource "aws_db_subnet_group" "this" {
 #   multi_az                        = true
 # #   db_subnet_group_name            = aws_db_subnet_group.this.name
 #   vpc_security_group_ids          = [ aws_security_group.database.id ]
-#   enabled_cloudwatch_logs_exports = [ "error", "slowquery" ]
+#   enabled_cloudwatch_logs_exports = ["postgresql"]
+# For testing purposes final snapshot might be skipped.
 #   skip_final_snapshot             = true
 
 # tags = merge(var.tags, {

@@ -7,10 +7,12 @@ resource "aws_instance" "this" {
   key_name                    = var.private_ssh_key_name
   vpc_security_group_ids      = setunion([aws_security_group.ec2_instance.id], var.additional_security_group_ids)
   iam_instance_profile        = aws_iam_instance_profile.this.name
-  # user_data                   = data.cloudinit_config.user_data.rendered
-  user_data     = var.user_data != null ? var.user_data : data.cloudinit_config.user_data.rendered
-  ebs_optimized = true
-  monitoring    = true
+  user_data                   = var.user_data != null ? var.user_data : data.cloudinit_config.user_data.rendered
+  ebs_optimized               = true
+  monitoring                  = true
+
+  # Deletion protection might be disabled to allow for easier testing and development of IaC.
+  disable_api_termination = true
 
   root_block_device {
     volume_type = var.volume_type
@@ -26,7 +28,7 @@ resource "aws_instance" "this" {
   # To ignore changes to the AMI ID, which can happen when the AMI is updated in AWS. Those changes can cause the instance to be recreated, which is not always desired.
   # https://discuss.hashicorp.com/t/handle-changed-image-ami-on-aws/28652
   lifecycle {
-    ignore_changes = [ ami ]
+    ignore_changes = [ami]
   }
 
   tags = var.tags

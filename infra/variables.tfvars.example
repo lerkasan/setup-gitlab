@@ -33,194 +33,6 @@ ec2_instance_connect_endpoints = [
   }
 ]
 
-s3_buckets = [{
-  name               = "lerkasan-gitlab-alb-access-logs"
-  enable_encryption  = true
-  bucket_key_enabled = true
-  enable_logging     = false
-  object_ownership   = "BucketOwnerEnforced"
-  versioning_status  = "Enabled"
-  lifecycle_rule = {
-    status                             = "Enabled"
-    prefix                             = ""
-    expiration_days                    = 0
-    noncurrent_version_expiration_days = 90
-    noncurrent_version_transition_days = 30
-  }
-  },
-  {
-    name               = "lerkasan-gitlab-nlb-access-logs"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-registry"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-artifacts"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-lfs"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-uploads"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-packages"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-mr-diffs"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-terraform-state"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-dependency-proxy"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-ci-secure-files"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  },
-  {
-    name               = "lerkasan-gitlab-pages"
-    enable_encryption  = true
-    bucket_key_enabled = true
-    enable_logging     = false
-    object_ownership   = "BucketOwnerEnforced"
-    versioning_status  = "Enabled"
-    lifecycle_rule = {
-      status                             = "Enabled"
-      prefix                             = ""
-      expiration_days                    = 0
-      noncurrent_version_expiration_days = 90
-      noncurrent_version_transition_days = 30
-    }
-  }
-]
-
-# https://stackoverflow.com/questions/66582892/use-aws-loadbalancer-for-https-and-ssh 
-# https://aws.amazon.com/de/blogs/networking-and-content-delivery/application-load-balancer-type-target-group-for-network-load-balancer/
-# Note to future me: I really like Application LBs for being able to use redirects (in listeners) from HTTP to HTTPS, and from lerkasan.net to gitlab.lerkasan.net, as well as health checks with paths and matchers. 
-# Though, it looks like Network LBs also support health checks, but they don't support redirects.
-# However, ALBs support only HTTP and HTTPS protocols, so I needed a Network LB to support TCP protocol for GitLab SSH access. On the other hand, NLBs don't support redirects.
-# Therefore, in this configuration I used a NLB as an internet-facing LB and an ALB as an internal LB behind a NLB.
 load_balancers = [
   {
     lb_name                          = "gitlab-nlb"
@@ -561,6 +373,188 @@ ec2_appservers = [
       "Environment" = "dev"
       "Project"     = "gitlab"
       "ManagedBy"   = "terraform"
+    }
+  }
+]
+
+s3_buckets = [{
+  name               = "lerkasan-gitlab-alb-access-logs"
+  enable_encryption  = true
+  bucket_key_enabled = true
+  enable_logging     = false
+  object_ownership   = "BucketOwnerEnforced"
+  versioning_status  = "Enabled"
+  lifecycle_rule = {
+    status                             = "Enabled"
+    prefix                             = ""
+    expiration_days                    = 0
+    noncurrent_version_expiration_days = 90
+    noncurrent_version_transition_days = 30
+  }
+  },
+  {
+    name               = "lerkasan-gitlab-nlb-access-logs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-registry"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-artifacts"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-lfs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-uploads"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-packages"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-mr-diffs"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-terraform-state"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-dependency-proxy"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-ci-secure-files"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
+    }
+  },
+  {
+    name               = "lerkasan-gitlab-pages"
+    enable_encryption  = true
+    bucket_key_enabled = true
+    enable_logging     = false
+    object_ownership   = "BucketOwnerEnforced"
+    versioning_status  = "Enabled"
+    lifecycle_rule = {
+      status                             = "Enabled"
+      prefix                             = ""
+      expiration_days                    = 0
+      noncurrent_version_expiration_days = 90
+      noncurrent_version_transition_days = 30
     }
   }
 ]

@@ -19,7 +19,6 @@ data "cloudinit_config" "user_data_gitlab" {
             "permissions" = "0600"
             "owner"       = "root:root"
             "content" = templatefile("${path.root}/templates/gitlab/server/gitlab_rb.tftpl", {
-              # https://developer.hashicorp.com/terraform/language/functions/templatefile  TODO: I want to provide a more generic way to pass variables to the template as a map
               vpc_cidr                      = each.value.userdata_config.vpc_cidr,
               region                        = data.aws_region.current.name,
               domain_name                   = each.value.userdata_config.domain_name,
@@ -31,16 +30,13 @@ data "cloudinit_config" "user_data_gitlab" {
               registry_s3_bucket            = each.value.userdata_config.registry_s3_storage_enabled ? each.value.userdata_config.registry_s3_bucket : null,
               obj_store_s3_enabled          = each.value.userdata_config.obj_store_s3_enabled,
               obj_store_s3_bucket_prefix    = each.value.userdata_config.obj_store_s3_bucket_prefix,
-              # Currently in gitlab_rb.tftpl we do not use property 'regionendpoint' => '${s3_vpc_regionendpoint}' in registry configuration. 
-              # TODO: research which value should be used for regionendpoint property, if we have a VPC endpoint for S3 and proper routes
-              # s3_vpc_regionendpoint         = var.userdata_config.registry_s3_storage_enabled ? data.aws_vpc_endpoint.s3[0].arn : null,
-              db_adapter  = each.value.userdata_config.db_adapter,
-              db_host     = each.value.userdata_config.db_host,
-              db_port     = each.value.userdata_config.db_port,
-              db_name     = each.value.userdata_config.db_name,
-              db_username = each.value.userdata_config.db_username,
-              redis_host  = each.value.userdata_config.redis_host,
-              redis_port  = each.value.userdata_config.redis_port
+              db_adapter                    = each.value.userdata_config.db_adapter,
+              db_host                       = each.value.userdata_config.db_host,
+              db_port                       = each.value.userdata_config.db_port,
+              db_name                       = each.value.userdata_config.db_name,
+              db_username                   = each.value.userdata_config.db_username,
+              redis_host                    = each.value.userdata_config.redis_host,
+              redis_port                    = each.value.userdata_config.redis_port
             })
           },
           {
@@ -66,7 +62,6 @@ data "cloudinit_config" "user_data_gitlab" {
       content = templatefile("${path.root}/templates/gitlab/userdata.tftpl", {
         install_gitlab        = can(each.value.userdata_config.install_gitlab) ? each.value.userdata_config.install_gitlab : false,
         install_gitlab_runner = can(each.value.userdata_config.install_gitlab_runner) ? each.value.userdata_config.install_gitlab_runner : false,
-        # public_ssh_keys       = [for ssh_key in data.aws_ssm_parameter.admin_public_ssh_keys[each.key] : ssh_key.value]
       })
     }
   }
